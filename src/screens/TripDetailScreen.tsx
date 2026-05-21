@@ -23,7 +23,7 @@ import {
   reconstructState,
 } from '../db/trip-repository';
 import { getBusById } from '../db/bus-repository';
-import { Trip, TripEvent, TripState, PassengerState } from '../types/trip';
+import { Trip, TripEvent, TripState } from '../types/trip';
 import type { TripStackParamList } from '../navigation/TripStackNavigator';
 import type { Bus } from '../types/bus';
 
@@ -38,9 +38,9 @@ export default function TripDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [passengerLabel, setPassengerLabel] = useState('');
-  const [newLabel, setNewLabel] = useState('');
   const [cashAmount, setCashAmount] = useState('');
   const [actionType, setActionType] = useState<string | null>(null);
+  const [moveSeat, setMoveSeat] = useState<string | null>(null);
   const passengerInputRef = useRef<TextInput>(null);
 
   const isActive = trip?.endDateTime === null;
@@ -87,6 +87,34 @@ export default function TripDetailScreen() {
     return seats;
   }, [state, bus]);
 
+  const tempSeats = useMemo(() => {
+    const seats: string[] = [];
+    if (state) {
+      for (const passenger of state.passengers.values()) {
+        if (passenger.alightedAt !== null) continue;
+        if (passenger.label.startsWith('temp-')) {
+          seats.push(passenger.label);
+        }
+      }
+    }
+    seats.sort();
+    return seats;
+  }, [state]);
+
+  async function handleMovePassenger(fromLabel: string, toLabel: string) {
+    try {
+      await addTripEvent({
+        tripId,
+        type: 'PASSENGER_CHANGE_SEAT',
+        label: fromLabel,
+        data: JSON.stringify({ newLabel: toLabel }),
+      });
+      loadTrip();
+    } catch {
+      Alert.alert('Error', 'Failed to move passenger.');
+    }
+  }
+
   function handleEndTrip() {
     Alert.alert('End Trip', 'Are you sure you want to end this trip?', [
       { text: 'Cancel', style: 'cancel' },
@@ -110,8 +138,8 @@ export default function TripDetailScreen() {
   function openAction(type: string) {
     setActionType(type);
     setPassengerLabel('');
-    setNewLabel('');
     setCashAmount('');
+    setMoveSeat(null);
     setShowActionSheet(true);
     setTimeout(() => passengerInputRef.current?.focus(), 100);
   }
@@ -119,11 +147,6 @@ export default function TripDetailScreen() {
   async function handleActionSubmit() {
     if (!actionType || !passengerLabel.trim()) {
       Alert.alert('Required', 'Passenger label is required.');
-      return;
-    }
-
-    if (actionType === 'PASSENGER_CHANGE_SEAT' && !newLabel.trim()) {
-      Alert.alert('Required', 'New seat label is required.');
       return;
     }
 
@@ -143,10 +166,6 @@ export default function TripDetailScreen() {
         }
       }
 
-      if (actionType === 'PASSENGER_CHANGE_SEAT') {
-        data.newLabel = newLabel.trim();
-      }
-
       await addTripEvent({
         tripId,
         type: actionType as TripEvent['type'],
@@ -157,7 +176,6 @@ export default function TripDetailScreen() {
       setShowActionSheet(false);
       setActionType(null);
       setPassengerLabel('');
-      setNewLabel('');
       setCashAmount('');
       loadTrip();
     } catch {
@@ -230,6 +248,10 @@ export default function TripDetailScreen() {
             seatRows={bus.seatRows}
             driverSeatCount={bus.driverSeatCount}
             occupiedSeats={occupiedSeats}
+            onMovePassenger={handleMovePassenger}
+            tempSeats={tempSeats}
+            selectedSeatLabel={moveSeat}
+            onSeatSelect={setMoveSeat}
           />
         )}
 
@@ -255,12 +277,6 @@ export default function TripDetailScreen() {
           <TouchableOpacity style={styles.fabAction} onPress={() => openAction('CASH_OUT')}>
             <Text style={styles.fabActionText}>Cash Out</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.fabAction}
-            onPress={() => openAction('PASSENGER_CHANGE_SEAT')}
-          >
-            <Text style={styles.fabActionText}>Move</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={styles.fabAction} onPress={() => openAction('PASSENGER_ALIGHT')}>
             <Text style={styles.fabActionText}>Alight</Text>
           </TouchableOpacity>
@@ -276,35 +292,18 @@ export default function TripDetailScreen() {
             <Text style={styles.actionSheetTitle}>
               {actionType === 'PASSENGER_BOARD' && 'Passenger Boarding'}
               {actionType === 'PASSENGER_ALIGHT' && 'Passenger Alighting'}
-              {actionType === 'PASSENGER_CHANGE_SEAT' && 'Change Seat'}
               {actionType === 'CASH_IN' && 'Cash Received'}
               {actionType === 'CASH_OUT' && 'Cash Returned'}
             </Text>
 
-            <Text style={styles.fieldLabel}>
-              {actionType === 'PASSENGER_CHANGE_SEAT' ? 'Current Label' : 'Passenger Label'}
-            </Text>
+            <Text style={styles.fieldLabel}>Passenger Label</Text>
             <TextInput
               ref={passengerInputRef}
               style={styles.input}
               value={passengerLabel}
               onChangeText={setPassengerLabel}
-              placeholder={
-                actionType === 'PASSENGER_CHANGE_SEAT' ? 'e.g. 3' : 'e.g. Seat 1 or name'
-              }
+              placeholder="e.g. Seat 1 or name"
             />
-
-            {actionType === 'PASSENGER_CHANGE_SEAT' && (
-              <>
-                <Text style={styles.fieldLabel}>New Label</Text>
-                <TextInput
-                  style={styles.input}
-                  value={newLabel}
-                  onChangeText={setNewLabel}
-                  placeholder="e.g. 8"
-                />
-              </>
-            )}
 
             {(actionType === 'CASH_IN' || actionType === 'CASH_OUT') && (
               <>
