@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Bus, BusFormData } from '../types/bus';
-import { SEAT_OPTIONS } from '../constants/bus';
 import PhotoPicker from './PhotoPicker';
 import { createBus, updateBus } from '../db/bus-repository';
 
@@ -25,9 +24,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
 
   const [numero, setNumero] = useState(existingBus?.numero ?? '');
   const [name, setName] = useState(existingBus?.name ?? '');
-  const [numberOfPlace, setNumberOfPlace] = useState<number>(
-    existingBus?.numberOfPlace ?? SEAT_OPTIONS[0],
-  );
+  const [numberOfPlace, setNumberOfPlace] = useState<number>(existingBus?.numberOfPlace ?? 0);
   const [photos, setPhotos] = useState<(string | null)[]>([
     existingBus?.photo1 ?? null,
     existingBus?.photo2 ?? null,
@@ -91,25 +88,14 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
       {name.trim().length === 0 && <Text style={styles.error}>Required</Text>}
 
       <Text style={styles.fieldLabel}>Number of Places *</Text>
-      <View style={styles.seatGrid}>
-        {SEAT_OPTIONS.map((option) => (
-          <TouchableOpacity
-            key={option}
-            style={[styles.seatOption, numberOfPlace === option && styles.seatOptionSelected]}
-            onPress={() => setNumberOfPlace(option)}
-            disabled={isSaving}
-          >
-            <Text
-              style={[
-                styles.seatOptionText,
-                numberOfPlace === option && styles.seatOptionTextSelected,
-              ]}
-            >
-              {option}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <TextInput
+        style={styles.input}
+        value={numberOfPlace > 0 ? String(numberOfPlace) : ''}
+        onChangeText={(text) => setNumberOfPlace(Number(text) || 0)}
+        placeholder="e.g. 22"
+        keyboardType="numeric"
+        editable={!isSaving}
+      />
 
       <PhotoPicker photos={photos} onPhotosChange={setPhotos} />
 
@@ -162,31 +148,6 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontSize: 12,
     marginTop: 2,
-  },
-  seatGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  seatOption: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#ffffff',
-  },
-  seatOptionSelected: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-  },
-  seatOptionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  seatOptionTextSelected: {
-    color: '#ffffff',
   },
   actions: {
     flexDirection: 'row',
