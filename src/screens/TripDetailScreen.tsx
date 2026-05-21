@@ -216,6 +216,7 @@ export default function TripDetailScreen() {
           <TripMinimap
             seatColumns={bus.seatColumns}
             seatRows={bus.seatRows}
+            driverSeatCount={bus.driverSeatCount}
             occupiedSeats={occupiedSeats}
           />
         )}

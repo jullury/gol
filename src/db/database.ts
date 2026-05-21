@@ -19,6 +19,7 @@ async function migrate(database: SQLite.SQLiteDatabase): Promise<void> {
       numberOfPlace INTEGER NOT NULL,
       seatColumns INTEGER NOT NULL DEFAULT 5,
       seatRows INTEGER NOT NULL DEFAULT 0,
+      driverSeatCount INTEGER NOT NULL DEFAULT 2,
       photo1 TEXT,
       photo2 TEXT,
       photo3 TEXT,
@@ -62,6 +63,11 @@ async function migrate(database: SQLite.SQLiteDatabase): Promise<void> {
   }
   if (!columnNames.includes('seatRows')) {
     await database.execAsync('ALTER TABLE buses ADD COLUMN seatRows INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!columnNames.includes('driverSeatCount')) {
+    await database.execAsync(
+      'ALTER TABLE buses ADD COLUMN driverSeatCount INTEGER NOT NULL DEFAULT 2',
+    );
   }
 }
 

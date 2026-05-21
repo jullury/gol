@@ -124,7 +124,7 @@ export default function BusDetailScreen() {
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Seat Grid</Text>
           <Text style={styles.detailValue}>
-            {bus.seatColumns} × {bus.seatRows} + 2
+            {bus.seatColumns} × {bus.seatRows} + {bus.driverSeatCount}
           </Text>
         </View>
 

@@ -26,6 +26,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
   const [name, setName] = useState(existingBus?.name ?? '');
   const [seatColumns, setSeatColumns] = useState<number>(existingBus?.seatColumns ?? 5);
   const [seatRows, setSeatRows] = useState<number>(existingBus?.seatRows ?? 4);
+  const [driverSeatCount, setDriverSeatCount] = useState<number>(existingBus?.driverSeatCount ?? 2);
   const [photos, setPhotos] = useState<(string | null)[]>([
     existingBus?.photo1 ?? null,
     existingBus?.photo2 ?? null,
@@ -36,8 +37,8 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
   const totalSeats = useMemo(() => {
     const cols = seatColumns > 0 ? seatColumns : 1;
     const rows = seatRows > 0 ? seatRows : 1;
-    return cols * rows + 2;
-  }, [seatColumns, seatRows]);
+    return cols * rows + driverSeatCount;
+  }, [seatColumns, seatRows, driverSeatCount]);
 
   const trimmedNumero = numero.trim();
   const trimmedName = name.trim();
@@ -55,6 +56,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
         numberOfPlace: totalSeats,
         seatColumns,
         seatRows,
+        driverSeatCount,
         photo1: photos[0] ?? null,
         photo2: photos[1] ?? null,
         photo3: photos[2] ?? null,
@@ -79,10 +81,11 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
     const rows = seatRows > 0 ? seatRows : 4;
 
     const gridSeats: React.ReactNode[] = [];
+    const gridStart = 1 + driverSeatCount;
     for (let r = 0; r < rows; r++) {
       const rowSeats: React.ReactNode[] = [];
       for (let c = 0; c < cols; c++) {
-        const seatNum = 3 + r * cols + c;
+        const seatNum = gridStart + r * cols + c;
         rowSeats.push(
           <View key={seatNum} style={[styles.previewSeat, styles.previewGridSeat]}>
             <Text style={styles.previewSeatText}>{seatNum}</Text>
@@ -96,18 +99,22 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
       );
     }
 
+    const frontSeats: React.ReactNode[] = [];
+    for (let i = 1; i <= driverSeatCount; i++) {
+      frontSeats.push(
+        <View key={i} style={[styles.previewSeat, styles.previewGridSeat]}>
+          <Text style={styles.previewSeatText}>{i}</Text>
+        </View>,
+      );
+    }
+
     return (
       <View style={styles.previewContainer}>
         <View style={styles.previewFront}>
           <View style={[styles.previewSeat, styles.previewDriverSeat]}>
             <Text style={styles.previewSeatText}>D</Text>
           </View>
-          <View style={[styles.previewSeat, styles.previewGridSeat]}>
-            <Text style={styles.previewSeatText}>1</Text>
-          </View>
-          <View style={[styles.previewSeat, styles.previewGridSeat]}>
-            <Text style={styles.previewSeatText}>2</Text>
-          </View>
+          {frontSeats}
         </View>
         <View style={styles.previewDivider} />
         {gridSeats}
@@ -139,9 +146,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
       {name.trim().length === 0 && <Text style={styles.error}>Required</Text>}
 
       <Text style={styles.fieldLabel}>Seat Grid</Text>
-      <Text style={styles.hint}>
-        Define the seat layout. Total = columns × rows + 2 (driver area)
-      </Text>
+      <Text style={styles.hint}>Define the seat layout. Total = columns × rows + front seats</Text>
 
       <View style={styles.gridRow}>
         <View style={styles.gridField}>
@@ -168,12 +173,40 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
         </View>
       </View>
 
+      <View style={styles.driverSeatRow}>
+        <Text style={styles.fieldLabel}>Front Seats</Text>
+        <View style={styles.driverSeatToggle}>
+          <TouchableOpacity
+            style={[styles.toggleBtn, driverSeatCount === 1 && styles.toggleBtnActive]}
+            onPress={() => setDriverSeatCount(1)}
+            disabled={isSaving}
+          >
+            <Text
+              style={[styles.toggleBtnText, driverSeatCount === 1 && styles.toggleBtnTextActive]}
+            >
+              1
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, driverSeatCount === 2 && styles.toggleBtnActive]}
+            onPress={() => setDriverSeatCount(2)}
+            disabled={isSaving}
+          >
+            <Text
+              style={[styles.toggleBtnText, driverSeatCount === 2 && styles.toggleBtnTextActive]}
+            >
+              2
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {seatColumns > 0 && seatRows > 0 && (
         <View style={styles.totalContainer}>
           <Text style={styles.totalText}>
             Total:{' '}
             <Text style={styles.totalHighlight}>
-              {seatColumns} × {seatRows} + 2 = {totalSeats} seats
+              {seatColumns} × {seatRows} + {driverSeatCount} = {totalSeats} seats
             </Text>
           </Text>
         </View>
@@ -244,6 +277,34 @@ const styles = StyleSheet.create({
   },
   gridField: {
     flex: 1,
+  },
+  driverSeatRow: {
+    marginTop: 12,
+  },
+  driverSeatToggle: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+  },
+  toggleBtnActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
+  },
+  toggleBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  toggleBtnTextActive: {
+    color: '#ffffff',
   },
   totalContainer: {
     backgroundColor: '#f0fdf4',

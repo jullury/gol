@@ -3,12 +3,19 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 interface TripMinimapProps {
   seatColumns: number;
   seatRows: number;
+  driverSeatCount: number;
   occupiedSeats: Set<number>;
 }
 
-export default function TripMinimap({ seatColumns, seatRows, occupiedSeats }: TripMinimapProps) {
+export default function TripMinimap({
+  seatColumns,
+  seatRows,
+  driverSeatCount,
+  occupiedSeats,
+}: TripMinimapProps) {
   const cols = seatColumns > 0 ? seatColumns : 5;
   const rows = seatRows > 0 ? seatRows : 4;
+  const gridStart = 1 + driverSeatCount;
 
   function renderGrid() {
     const gridRows: React.ReactNode[] = [];
@@ -16,7 +23,7 @@ export default function TripMinimap({ seatColumns, seatRows, occupiedSeats }: Tr
     for (let r = 0; r < rows; r++) {
       const seats: React.ReactNode[] = [];
       for (let c = 0; c < cols; c++) {
-        const seatNum = 3 + r * cols + c;
+        const seatNum = gridStart + r * cols + c;
         const occupied = occupiedSeats.has(seatNum);
         seats.push(
           <View
@@ -40,7 +47,7 @@ export default function TripMinimap({ seatColumns, seatRows, occupiedSeats }: Tr
     return gridRows;
   }
 
-  const totalSeats = cols * rows + 2;
+  const totalSeats = cols * rows + driverSeatCount;
   const occupiedCount = occupiedSeats.size;
   const freeCount = totalSeats - occupiedCount;
 
@@ -66,30 +73,27 @@ export default function TripMinimap({ seatColumns, seatRows, occupiedSeats }: Tr
               <Text style={styles.seatDriverText}>D</Text>
             </View>
             <View style={styles.frontRow}>
-              <View
-                style={[styles.seat, occupiedSeats.has(1) ? styles.seatOccupied : styles.seatEmpty]}
-              >
-                <Text
-                  style={[
-                    styles.seatText,
-                    occupiedSeats.has(1) ? styles.seatTextOccupied : styles.seatTextEmpty,
-                  ]}
-                >
-                  1
-                </Text>
-              </View>
-              <View
-                style={[styles.seat, occupiedSeats.has(2) ? styles.seatOccupied : styles.seatEmpty]}
-              >
-                <Text
-                  style={[
-                    styles.seatText,
-                    occupiedSeats.has(2) ? styles.seatTextOccupied : styles.seatTextEmpty,
-                  ]}
-                >
-                  2
-                </Text>
-              </View>
+              {Array.from({ length: driverSeatCount }, (_, i) => {
+                const seatNum = i + 1;
+                return (
+                  <View
+                    key={seatNum}
+                    style={[
+                      styles.seat,
+                      occupiedSeats.has(seatNum) ? styles.seatOccupied : styles.seatEmpty,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.seatText,
+                        occupiedSeats.has(seatNum) ? styles.seatTextOccupied : styles.seatTextEmpty,
+                      ]}
+                    >
+                      {seatNum}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
 

@@ -5,6 +5,7 @@ export interface Bus {
   numberOfPlace: number;
   seatColumns: number;
   seatRows: number;
+  driverSeatCount: number;
   photo1: string | null;
   photo2: string | null;
   photo3: string | null;
