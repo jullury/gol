@@ -13,6 +13,7 @@ export type TripEventType =
   | 'TRIP_END'
   | 'PASSENGER_BOARD'
   | 'PASSENGER_ALIGHT'
+  | 'PASSENGER_CHANGE_SEAT'
   | 'CASH_IN'
   | 'CASH_OUT';
 

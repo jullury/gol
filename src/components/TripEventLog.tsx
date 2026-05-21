@@ -10,6 +10,7 @@ const eventIcons: Record<TripEventType, string> = {
   TRIP_END: '\u25A0',
   PASSENGER_BOARD: '\u2795',
   PASSENGER_ALIGHT: '\u2796',
+  PASSENGER_CHANGE_SEAT: '\u21C4',
   CASH_IN: '\u2193',
   CASH_OUT: '\u2191',
 };
@@ -19,6 +20,7 @@ const eventLabels: Record<TripEventType, string> = {
   TRIP_END: 'Trip Ended',
   PASSENGER_BOARD: 'Passenger Boarded',
   PASSENGER_ALIGHT: 'Passenger Alighted',
+  PASSENGER_CHANGE_SEAT: 'Passenger Changed Seat',
   CASH_IN: 'Cash Received',
   CASH_OUT: 'Cash Returned',
 };
@@ -42,6 +44,9 @@ function formatEventDetail(event: TripEvent): string {
     }
     if (event.type === 'CASH_OUT') {
       return `${event.label}: -${parsed.amount.toLocaleString()} Ar`;
+    }
+    if (event.type === 'PASSENGER_CHANGE_SEAT') {
+      return `${event.label} \u2192 ${parsed.newLabel}`;
     }
     return event.label;
   } catch {

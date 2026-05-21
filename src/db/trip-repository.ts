@@ -1,5 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Trip, TripFormData, TripEvent, TripEventInput, TripEventType, TripState, PassengerState } from '../types/trip';
+import {
+  Trip,
+  TripFormData,
+  TripEvent,
+  TripEventInput,
+  TripEventType,
+  TripState,
+  PassengerState,
+} from '../types/trip';
 import { getDatabase } from './database';
 
 export async function getAllTrips(filter?: 'active' | 'completed'): Promise<Trip[]> {
@@ -167,6 +175,20 @@ export function reconstructState(trip: Trip, events: TripEvent[]): TripState {
         const passenger = passengers.get(label);
         if (passenger) {
           passenger.alightedAt = event.createdAt;
+        }
+        break;
+      }
+      case 'PASSENGER_CHANGE_SEAT': {
+        const parsed = JSON.parse(event.data);
+        const oldLabel = event.label;
+        const newLabel = parsed.newLabel;
+        const passenger = passengers.get(oldLabel);
+        if (passenger) {
+          passengers.delete(oldLabel);
+          passengers.set(newLabel, {
+            ...passenger,
+            label: newLabel,
+          });
         }
         break;
       }
