@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import * as Crypto from 'expo-crypto';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -26,6 +27,7 @@ import { Trip, TripEvent, TripState } from '../types/trip';
 import type { TripStackParamList } from '../navigation/TripStackNavigator';
 import type { Bus } from '../types/bus';
 import { useTheme, useThemeStyles } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TripDetailScreen() {
   const route = useRoute<RouteProp<TripStackParamList, 'TripDetail'>>();
@@ -39,11 +41,12 @@ export default function TripDetailScreen() {
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [passengerLabel, setPassengerLabel] = useState('');
   const [cashAmount, setCashAmount] = useState('');
-  const [actionType, setActionType] = useState<string | null>(null);
+  const [actionType, setActionType] = useState<'CASH_IN' | 'CASH_OUT' | null>(null);
   const [moveSeat, setMoveSeat] = useState<string | null>(null);
-  const passengerInputRef = useRef<TextInput>(null);
+  const [seatActionLabel, setSeatActionLabel] = useState<string | null>(null);
   const { colors, fonts } = useTheme();
   const styles = useThemeStyles(createStyles);
+  const insets = useSafeAreaInsets();
 
   const isActive = trip?.endDateTime === null;
 
@@ -76,40 +79,55 @@ export default function TripDetailScreen() {
 
   const occupiedSeats = useMemo(() => {
     const seats = new Set<number>();
-    if (state && bus) {
-      for (const passenger of state.passengers.values()) {
-        if (passenger.alightedAt === null) {
-          const seatNum = parseInt(passenger.label, 10);
-          if (!isNaN(seatNum) && seatNum >= 1 && seatNum <= bus.numberOfPlace) {
-            seats.add(seatNum);
-          }
-        }
-      }
-    }
-    return seats;
-  }, [state, bus]);
-
-  const tempSeats = useMemo(() => {
-    const seats: string[] = [];
     if (state) {
-      for (const passenger of state.passengers.values()) {
-        if (passenger.alightedAt !== null) continue;
-        if (passenger.label.startsWith('temp-')) {
-          seats.push(passenger.label);
+      for (const p of state.passengers.values()) {
+        if (p.alightedAt === null && p.seatNumber !== null) {
+          seats.add(p.seatNumber);
         }
       }
     }
-    seats.sort();
     return seats;
   }, [state]);
 
-  async function handleMovePassenger(fromLabel: string, toLabel: string) {
+  const tempSeats = useMemo(() => {
+    const slots: string[] = [];
+    if (state) {
+      for (const p of state.passengers.values()) {
+        if (p.alightedAt !== null || p.tempSlot === null) continue;
+        slots.push(`temp-${p.tempSlot}`);
+      }
+    }
+    slots.sort();
+    return slots;
+  }, [state]);
+
+  function getPassengerBySeat(seatId: string) {
+    if (!state) return null;
+    const isTempSeat = seatId.startsWith('temp-');
+    for (const p of state.passengers.values()) {
+      if (p.alightedAt !== null) continue;
+      if (isTempSeat) {
+        if (p.tempSlot === parseInt(seatId.slice(5), 10)) return p;
+      } else {
+        if (p.seatNumber === parseInt(seatId, 10)) return p;
+      }
+    }
+    return null;
+  }
+
+  async function handleMovePassenger(fromSeatId: string, toSeatId: string) {
+    const passenger = getPassengerBySeat(fromSeatId);
+    if (!passenger) return;
+    const isTempTo = toSeatId.startsWith('temp-');
+    const data = isTempTo
+      ? { toTempSlot: parseInt(toSeatId.slice(5), 10) }
+      : { toSeatNumber: parseInt(toSeatId, 10) };
     try {
       await addTripEvent({
         tripId,
         type: 'PASSENGER_CHANGE_SEAT',
-        label: fromLabel,
-        data: JSON.stringify({ newLabel: toLabel }),
+        label: passenger.label,
+        data: JSON.stringify(data),
       });
       loadTrip();
     } catch {
@@ -137,42 +155,75 @@ export default function TripDetailScreen() {
     ]);
   }
 
-  function openAction(type: string) {
+  async function handleBoardSeat(seatId: string) {
+    const hexLabel = Crypto.randomUUID().replace(/-/g, '').slice(0, 8);
+    const isTempSeat = seatId.startsWith('temp-');
+    const data = isTempSeat
+      ? { tempSlot: parseInt(seatId.slice(5), 10) }
+      : { seatNumber: parseInt(seatId, 10) };
+    try {
+      await addTripEvent({
+        tripId,
+        type: 'PASSENGER_BOARD',
+        label: hexLabel,
+        data: JSON.stringify(data),
+      });
+      loadTrip();
+    } catch {
+      Alert.alert('Error', 'Failed to board passenger.');
+    }
+  }
+
+  function handleOccupiedSeatTap(seatId: string) {
+    setSeatActionLabel(seatId);
+  }
+
+  async function handleSeatAlight(seatId: string) {
+    setSeatActionLabel(null);
+    const passenger = getPassengerBySeat(seatId);
+    if (!passenger) return;
+    try {
+      await addTripEvent({ tripId, type: 'PASSENGER_ALIGHT', label: passenger.label, data: '{}' });
+      loadTrip();
+    } catch {
+      Alert.alert('Error', 'Failed to record alight.');
+    }
+  }
+
+  function handleSeatCash(seatId: string, type: 'CASH_IN' | 'CASH_OUT') {
+    setSeatActionLabel(null);
+    const passenger = getPassengerBySeat(seatId);
+    if (!passenger) return;
     setActionType(type);
-    setPassengerLabel('');
+    setPassengerLabel(passenger.label);
     setCashAmount('');
     setMoveSeat(null);
     setShowActionSheet(true);
-    setTimeout(() => passengerInputRef.current?.focus(), 100);
+  }
+
+  function handleSeatMove(seatId: string) {
+    setSeatActionLabel(null);
+    setMoveSeat(seatId);
   }
 
   async function handleActionSubmit() {
-    if (!actionType || !passengerLabel.trim()) {
-      Alert.alert('Required', 'Passenger label is required.');
-      return;
-    }
-
-    if ((actionType === 'CASH_IN' || actionType === 'CASH_OUT') && !cashAmount.trim()) {
+    if (!actionType || !cashAmount.trim()) {
       Alert.alert('Required', 'Amount is required.');
       return;
     }
 
+    const amount = parseInt(cashAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Invalid', 'Amount must be a positive number.');
+      return;
+    }
+
     try {
-      const data: Record<string, unknown> = {};
-
-      if (actionType === 'CASH_IN' || actionType === 'CASH_OUT') {
-        data.amount = parseInt(cashAmount, 10);
-        if (isNaN(data.amount as number) || (data.amount as number) <= 0) {
-          Alert.alert('Invalid', 'Amount must be a positive number.');
-          return;
-        }
-      }
-
       await addTripEvent({
         tripId,
-        type: actionType as TripEvent['type'],
-        label: passengerLabel.trim(),
-        data: JSON.stringify(data),
+        type: actionType,
+        label: passengerLabel,
+        data: JSON.stringify({ amount }),
       });
 
       setShowActionSheet(false);
@@ -251,6 +302,8 @@ export default function TripDetailScreen() {
             driverSeatCount={bus.driverSeatCount}
             occupiedSeats={occupiedSeats}
             onMovePassenger={handleMovePassenger}
+            onBoardSeat={isActive ? handleBoardSeat : () => {}}
+            onOccupiedSeatTap={isActive ? handleOccupiedSeatTap : () => {}}
             tempSeats={tempSeats}
             selectedSeatLabel={moveSeat}
             onSeatSelect={setMoveSeat}
@@ -270,57 +323,69 @@ export default function TripDetailScreen() {
 
       {isActive && (
         <View style={styles.fabContainer}>
-          <TouchableOpacity style={styles.fabAction} onPress={() => openAction('PASSENGER_BOARD')}>
-            <Text style={styles.fabActionText}>Board</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.fabAction} onPress={() => openAction('CASH_IN')}>
-            <Text style={styles.fabActionText}>Cash In</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.fabAction} onPress={() => openAction('CASH_OUT')}>
-            <Text style={styles.fabActionText}>Cash Out</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.fabAction} onPress={() => openAction('PASSENGER_ALIGHT')}>
-            <Text style={styles.fabActionText}>Alight</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={styles.endTripFab} onPress={handleEndTrip}>
-            <Text style={styles.endTripFabText}>End</Text>
+            <Text style={styles.endTripFabText}>End Trip</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {seatActionLabel !== null && (
+        <View style={styles.overlay}>
+          <View style={[styles.actionSheet, { paddingBottom: insets.bottom + 20 }]}>
+            <Text style={styles.actionSheetTitle}>Seat {seatActionLabel}</Text>
+            <View style={styles.seatActionGrid}>
+              <View style={styles.seatActionRow}>
+                <TouchableOpacity
+                  style={[styles.seatActionBtn, { backgroundColor: colors.danger }]}
+                  onPress={() => handleSeatAlight(seatActionLabel)}
+                >
+                  <Text style={styles.seatActionBtnText}>Alight</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.seatActionBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => handleSeatCash(seatActionLabel, 'CASH_IN')}
+                >
+                  <Text style={styles.seatActionBtnText}>Cash In</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.seatActionRow}>
+                <TouchableOpacity
+                  style={[styles.seatActionBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => handleSeatCash(seatActionLabel, 'CASH_OUT')}
+                >
+                  <Text style={styles.seatActionBtnText}>Cash Out</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.seatActionBtn, { backgroundColor: colors.warning }]}
+                  onPress={() => handleSeatMove(seatActionLabel)}
+                >
+                  <Text style={[styles.seatActionBtnText, { color: colors.warningText }]}>
+                    Move
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </View>
       )}
 
       {showActionSheet && (
         <View style={styles.overlay}>
-          <View style={styles.actionSheet}>
+          <View style={[styles.actionSheet, { paddingBottom: insets.bottom + 20 }]}>
             <Text style={styles.actionSheetTitle}>
-              {actionType === 'PASSENGER_BOARD' && 'Passenger Boarding'}
-              {actionType === 'PASSENGER_ALIGHT' && 'Passenger Alighting'}
-              {actionType === 'CASH_IN' && 'Cash Received'}
-              {actionType === 'CASH_OUT' && 'Cash Returned'}
+              {actionType === 'CASH_IN' ? 'Cash Received' : 'Cash Returned'}
             </Text>
 
-            <Text style={styles.fieldLabel}>Passenger Label</Text>
+            <Text style={styles.fieldLabel}>Amount (Ar)</Text>
             <TextInput
-              ref={passengerInputRef}
               style={styles.input}
-              value={passengerLabel}
-              onChangeText={setPassengerLabel}
-              placeholder="e.g. Seat 1 or name"
+              value={cashAmount}
+              onChangeText={setCashAmount}
+              placeholder="e.g. 10000"
               placeholderTextColor={colors.text.disabled}
+              keyboardType="numeric"
+              autoFocus
             />
-
-            {(actionType === 'CASH_IN' || actionType === 'CASH_OUT') && (
-              <>
-                <Text style={styles.fieldLabel}>Amount (Ar)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={cashAmount}
-                  onChangeText={setCashAmount}
-                  placeholder="e.g. 10000"
-                  placeholderTextColor={colors.text.disabled}
-                  keyboardType="numeric"
-                />
-              </>
-            )}
 
             <View style={styles.actionSheetBtns}>
               <TouchableOpacity
@@ -411,39 +476,43 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     fontWeight: '500' as const,
   },
   fabContainer: {
-    flexDirection: 'row' as const,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    gap: 6,
-  },
-  fabAction: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  fabActionText: {
-    color: colors.text.inverse,
-    fontSize: 13,
-    fontWeight: '600' as const,
   },
   endTripFab: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 10,
     backgroundColor: colors.danger,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   endTripFabText: {
     color: colors.text.inverse,
-    fontSize: 13,
-    fontWeight: '600' as const,
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  seatActionGrid: {
+    gap: 10,
+    marginBottom: 4,
+  },
+  seatActionRow: {
+    flexDirection: 'row' as const,
+    gap: 10,
+  },
+  seatActionBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  seatActionBtnText: {
+    color: colors.text.inverse,
+    fontSize: 15,
+    fontWeight: '700' as const,
   },
   overlay: {
     position: 'absolute' as const,
@@ -459,7 +528,6 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 20,
-    paddingBottom: 40,
   },
   actionSheetTitle: {
     fontSize: 18,

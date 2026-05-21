@@ -140,9 +140,10 @@ export function reconstructState(trip: Trip, events: TripEvent[]): TripState {
     switch (event.type) {
       case 'PASSENGER_BOARD': {
         const parsed = JSON.parse(event.data);
-        const label = event.label;
-        passengers.set(label, {
-          label,
+        passengers.set(event.label, {
+          label: event.label,
+          seatNumber: parsed.seatNumber ?? null,
+          tempSlot: parsed.tempSlot ?? null,
           boardedAt: event.createdAt,
           cashIn: 0,
           cashOut: 0,
@@ -180,15 +181,10 @@ export function reconstructState(trip: Trip, events: TripEvent[]): TripState {
       }
       case 'PASSENGER_CHANGE_SEAT': {
         const parsed = JSON.parse(event.data);
-        const oldLabel = event.label;
-        const newLabel = parsed.newLabel;
-        const passenger = passengers.get(oldLabel);
+        const passenger = passengers.get(event.label);
         if (passenger) {
-          passengers.delete(oldLabel);
-          passengers.set(newLabel, {
-            ...passenger,
-            label: newLabel,
-          });
+          passenger.seatNumber = parsed.toSeatNumber ?? null;
+          passenger.tempSlot = parsed.toTempSlot ?? null;
         }
         break;
       }

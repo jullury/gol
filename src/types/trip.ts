@@ -31,6 +31,8 @@ export type TripEventInput = Omit<TripEvent, 'id' | 'sequence' | 'createdAt'>;
 
 export interface PassengerState {
   label: string;
+  seatNumber: number | null;
+  tempSlot: number | null;
   boardedAt: number;
   cashIn: number;
   cashOut: number;

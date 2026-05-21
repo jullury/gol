@@ -34,20 +34,34 @@ function formatTime(ts: number): string {
   });
 }
 
+function seatLabel(
+  seatNumber: number | null | undefined,
+  tempSlot: number | null | undefined,
+): string {
+  if (seatNumber != null) return `Seat ${seatNumber}`;
+  if (tempSlot != null) return `T${tempSlot}`;
+  return '?';
+}
+
 function formatEventDetail(event: TripEvent): string {
   if (event.type === 'TRIP_START' || event.type === 'TRIP_END') {
     return event.label;
   }
   try {
     const parsed = JSON.parse(event.data);
-    if (event.type === 'CASH_IN') {
-      return `${event.label}: +${parsed.amount.toLocaleString()} Ar`;
-    }
-    if (event.type === 'CASH_OUT') {
-      return `${event.label}: -${parsed.amount.toLocaleString()} Ar`;
+    if (event.type === 'PASSENGER_BOARD') {
+      return seatLabel(parsed.seatNumber, parsed.tempSlot);
     }
     if (event.type === 'PASSENGER_CHANGE_SEAT') {
-      return `${event.label} \u2192 ${parsed.newLabel}`;
+      const from = seatLabel(parsed.fromSeatNumber ?? null, parsed.fromTempSlot ?? null);
+      const to = seatLabel(parsed.toSeatNumber ?? null, parsed.toTempSlot ?? null);
+      return `${from} \u2192 ${to}`;
+    }
+    if (event.type === 'CASH_IN') {
+      return `+${parsed.amount.toLocaleString()} Ar`;
+    }
+    if (event.type === 'CASH_OUT') {
+      return `-${parsed.amount.toLocaleString()} Ar`;
     }
     return event.label;
   } catch {

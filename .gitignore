@@ -176,3 +176,4 @@ vite.config.ts.timestamp-*
 # Local project files
 .git-askpass
 .akama-prompt.txt
+.superpowers
