@@ -14,6 +14,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import CashFlowSummary from '../components/CashFlowSummary';
 import TripEventLog from '../components/TripEventLog';
+import TripMinimap from '../components/TripMinimap';
 import {
   getTripById,
   getTripEvents,
@@ -68,8 +69,7 @@ export default function TripDetailScreen() {
     }
   }
 
-  const state: TripState | null =
-    trip && events.length > 0 ? reconstructState(trip, events) : null;
+  const state: TripState | null = trip && events.length > 0 ? reconstructState(trip, events) : null;
 
   function handleEndTrip() {
     Alert.alert('End Trip', 'Are you sure you want to end this trip?', [
@@ -154,9 +154,7 @@ export default function TripDetailScreen() {
     );
   }
 
-  const passengerCount = state
-    ? Array.from(state.passengers.values()).length
-    : 0;
+  const passengerCount = state ? Array.from(state.passengers.values()).length : 0;
   const activePassengerCount = state
     ? Array.from(state.passengers.values()).filter((p) => p.alightedAt === null).length
     : 0;
@@ -199,6 +197,8 @@ export default function TripDetailScreen() {
           )}
         </View>
 
+        <TripMinimap events={events} scrollEnabled={!isActive} />
+
         <CashFlowSummary
           totalCashIn={state?.totalCashIn ?? 0}
           totalCashOut={state?.totalCashOut ?? 0}
@@ -212,10 +212,7 @@ export default function TripDetailScreen() {
 
       {isActive && (
         <View style={styles.fabContainer}>
-          <TouchableOpacity
-            style={styles.fabAction}
-            onPress={() => openAction('PASSENGER_BOARD')}
-          >
+          <TouchableOpacity style={styles.fabAction} onPress={() => openAction('PASSENGER_BOARD')}>
             <Text style={styles.fabActionText}>Board</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.fabAction} onPress={() => openAction('CASH_IN')}>
@@ -224,10 +221,7 @@ export default function TripDetailScreen() {
           <TouchableOpacity style={styles.fabAction} onPress={() => openAction('CASH_OUT')}>
             <Text style={styles.fabActionText}>Cash Out</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.fabAction}
-            onPress={() => openAction('PASSENGER_ALIGHT')}
-          >
+          <TouchableOpacity style={styles.fabAction} onPress={() => openAction('PASSENGER_ALIGHT')}>
             <Text style={styles.fabActionText}>Alight</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.endTripFab} onPress={handleEndTrip}>
