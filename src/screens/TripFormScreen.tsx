@@ -1,19 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAllBuses } from '../db/bus-repository';
 import { createTrip, hasActiveTrip } from '../db/trip-repository';
 import { Bus } from '../types/bus';
 import type { TripStackParamList } from '../navigation/TripStackNavigator';
+import { useTheme, useThemeStyles } from '../theme';
 
 export default function TripFormScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<TripStackParamList>>();
@@ -21,6 +14,8 @@ export default function TripFormScreen() {
   const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const { colors, fonts } = useTheme();
+  const styles = useThemeStyles(createStyles);
 
   useEffect(() => {
     loadBuses();
@@ -70,7 +65,7 @@ export default function TripFormScreen() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -111,16 +106,12 @@ export default function TripFormScreen() {
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[
-            styles.btn,
-            styles.startBtn,
-            (!selectedBusId || isSaving) && styles.btnDisabled,
-          ]}
+          style={[styles.btn, styles.startBtn, (!selectedBusId || isSaving) && styles.btnDisabled]}
           onPress={handleStartTrip}
           disabled={!selectedBusId || isSaving}
         >
           {isSaving ? (
-            <ActivityIndicator color="#ffffff" size="small" />
+            <ActivityIndicator color={colors.text.inverse} size="small" />
           ) : (
             <Text style={styles.startBtnText}>Start Trip</Text>
           )}
@@ -130,80 +121,82 @@ export default function TripFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.background,
   },
   center: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     padding: 20,
     gap: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
+    color: colors.text.muted,
+    textAlign: 'center' as const,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '700' as const,
+    fontFamily: fonts.bold,
+    color: colors.text.primary,
     marginBottom: 12,
   },
   busOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
   busOptionSelected: {
-    borderColor: '#2563eb',
+    borderColor: colors.primary,
   },
   radioOuter: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#d1d5db',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: colors.borderLight,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     marginRight: 12,
   },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
   },
   busInfo: {
     flex: 1,
   },
   busNumero: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '700' as const,
+    fontFamily: fonts.bold,
+    color: colors.text.primary,
   },
   busName: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.text.secondary,
     marginTop: 2,
   },
   busSeats: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.text.muted,
     marginTop: 2,
   },
   actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
     marginTop: 24,
     marginBottom: 40,
     gap: 12,
@@ -212,24 +205,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   cancelBtn: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.border,
   },
   cancelBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '600' as const,
+    color: colors.text.secondary,
   },
   startBtn: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
   },
   startBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontWeight: '600' as const,
+    color: colors.text.inverse,
   },
   btnDisabled: {
     opacity: 0.5,

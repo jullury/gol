@@ -5,13 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Bus, BusFormData } from '../types/bus';
 import PhotoPicker from './PhotoPicker';
 import { createBus, updateBus } from '../db/bus-repository';
+import { useTheme, useThemeStyles } from '../theme';
 
 interface BusFormProps {
   existingBus?: Bus;
@@ -33,6 +33,8 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
     existingBus?.photo3 ?? null,
   ]);
   const [isSaving, setIsSaving] = useState(false);
+  const { colors, fonts } = useTheme();
+  const styles = useThemeStyles(createStyles);
 
   const totalSeats = useMemo(() => {
     const cols = seatColumns > 0 ? seatColumns : 1;
@@ -112,11 +114,11 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
       <View style={styles.previewContainer}>
         <View style={styles.previewFront}>
           <View style={[styles.previewSeat, styles.previewDriverSeat]}>
-            <Text style={styles.previewSeatText}>D</Text>
+            <Text style={[styles.previewSeatText, { color: colors.warningText }]}>D</Text>
           </View>
           {frontSeats}
         </View>
-        <View style={styles.previewDivider} />
+        <View style={[styles.previewDivider, { backgroundColor: colors.border }]} />
         {gridSeats}
       </View>
     );
@@ -130,6 +132,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
         value={numero}
         onChangeText={setNumero}
         placeholder="e.g. 2341TBB"
+        placeholderTextColor={colors.text.disabled}
         autoCapitalize="characters"
         editable={!isSaving}
       />
@@ -141,6 +144,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
         value={name}
         onChangeText={setName}
         placeholder="Bus name"
+        placeholderTextColor={colors.text.disabled}
         editable={!isSaving}
       />
       {name.trim().length === 0 && <Text style={styles.error}>Required</Text>}
@@ -156,6 +160,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
             value={seatColumns > 0 ? String(seatColumns) : ''}
             onChangeText={(text) => setSeatColumns(Math.max(1, Number(text) || 0))}
             placeholder="e.g. 5"
+            placeholderTextColor={colors.text.disabled}
             keyboardType="numeric"
             editable={!isSaving}
           />
@@ -167,6 +172,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
             value={seatRows > 0 ? String(seatRows) : ''}
             onChangeText={(text) => setSeatRows(Math.max(1, Number(text) || 0))}
             placeholder="e.g. 4"
+            placeholderTextColor={colors.text.disabled}
             keyboardType="numeric"
             editable={!isSaving}
           />
@@ -205,7 +211,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
         <View style={styles.totalContainer}>
           <Text style={styles.totalText}>
             Total:{' '}
-            <Text style={styles.totalHighlight}>
+            <Text style={[styles.totalHighlight, { color: colors.success }]}>
               {seatColumns} × {seatRows} + {driverSeatCount} = {totalSeats} seats
             </Text>
           </Text>
@@ -231,7 +237,7 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
           disabled={!isValid || isSaving}
         >
           {isSaving ? (
-            <ActivityIndicator color="#ffffff" size="small" />
+            <ActivityIndicator color={colors.text.inverse} size="small" />
           ) : (
             <Text style={styles.saveBtnText}>{isEditing ? 'Update' : 'Create'}</Text>
           )}
@@ -241,38 +247,40 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: colors.background,
   },
   fieldLabel: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '600' as const,
+    color: colors.text.secondary,
     marginBottom: 6,
     marginTop: 12,
   },
   hint: {
     fontSize: 13,
-    color: '#6b7280',
+    color: colors.text.muted,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.borderLight,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
+    color: colors.text.primary,
   },
   error: {
-    color: '#dc2626',
+    color: colors.danger,
     fontSize: 12,
     marginTop: 2,
   },
   gridRow: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
   },
   gridField: {
@@ -282,7 +290,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   driverSeatToggle: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 8,
   },
   toggleBtn: {
@@ -290,61 +298,59 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surface,
+    alignItems: 'center' as const,
   },
   toggleBtnActive: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   toggleBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '600' as const,
+    color: colors.text.secondary,
   },
   toggleBtnTextActive: {
-    color: '#ffffff',
+    color: colors.text.inverse,
   },
   totalContainer: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: colors.successBg,
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
   },
   totalText: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.text.secondary,
   },
   totalHighlight: {
-    fontWeight: '700',
-    color: '#16a34a',
+    fontWeight: '700' as const,
   },
   previewContainer: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 8,
     padding: 12,
     marginTop: 12,
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   previewFront: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 4,
     paddingBottom: 8,
   },
   previewDriverSeat: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#f59e0b',
+    backgroundColor: colors.warningBg,
+    borderColor: colors.warningBorder,
   },
   previewDivider: {
-    width: '100%',
+    width: '100%' as const,
     height: 1,
-    backgroundColor: '#e5e7eb',
     marginBottom: 8,
   },
   previewRow: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 4,
     marginBottom: 4,
   },
@@ -353,21 +359,21 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 4,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   previewGridSeat: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d1d5db',
+    backgroundColor: colors.surface,
+    borderColor: colors.borderLight,
   },
   previewSeatText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '600' as const,
+    color: colors.text.secondary,
   },
   actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
     marginTop: 24,
     marginBottom: 40,
     gap: 12,
@@ -376,24 +382,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   cancelBtn: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.border,
   },
   cancelBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '600' as const,
+    color: colors.text.secondary,
   },
   saveBtn: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
   },
   saveBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontWeight: '600' as const,
+    color: colors.text.inverse,
   },
   btnDisabled: {
     opacity: 0.5,

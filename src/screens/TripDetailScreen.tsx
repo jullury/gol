@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -26,6 +25,7 @@ import { getBusById } from '../db/bus-repository';
 import { Trip, TripEvent, TripState } from '../types/trip';
 import type { TripStackParamList } from '../navigation/TripStackNavigator';
 import type { Bus } from '../types/bus';
+import { useTheme, useThemeStyles } from '../theme';
 
 export default function TripDetailScreen() {
   const route = useRoute<RouteProp<TripStackParamList, 'TripDetail'>>();
@@ -42,6 +42,8 @@ export default function TripDetailScreen() {
   const [actionType, setActionType] = useState<string | null>(null);
   const [moveSeat, setMoveSeat] = useState<string | null>(null);
   const passengerInputRef = useRef<TextInput>(null);
+  const { colors, fonts } = useTheme();
+  const styles = useThemeStyles(createStyles);
 
   const isActive = trip?.endDateTime === null;
 
@@ -186,7 +188,7 @@ export default function TripDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -303,6 +305,7 @@ export default function TripDetailScreen() {
               value={passengerLabel}
               onChangeText={setPassengerLabel}
               placeholder="e.g. Seat 1 or name"
+              placeholderTextColor={colors.text.disabled}
             />
 
             {(actionType === 'CASH_IN' || actionType === 'CASH_OUT') && (
@@ -313,6 +316,7 @@ export default function TripDetailScreen() {
                   value={cashAmount}
                   onChangeText={setCashAmount}
                   placeholder="e.g. 10000"
+                  placeholderTextColor={colors.text.disabled}
                   keyboardType="numeric"
                 />
               </>
@@ -339,10 +343,10 @@ export default function TripDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.background,
   },
   scroll: {
     flex: 1,
@@ -353,20 +357,20 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   errorText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: colors.text.muted,
   },
   headerCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginVertical: 8,
-    shadowColor: '#000',
+    shadowColor: colors.cardShadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -374,83 +378,84 @@ const styles = StyleSheet.create({
   },
   busNumero: {
     fontSize: 22,
-    fontWeight: '800',
-    color: '#111827',
+    fontWeight: '800' as const,
+    fontFamily: fonts.extrabold,
+    color: colors.text.primary,
     marginBottom: 8,
   },
   activeBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#dcfce7',
+    alignSelf: 'flex-start' as const,
+    backgroundColor: colors.successBg,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 3,
     marginBottom: 8,
   },
   activeBadgeText: {
-    color: '#16a34a',
+    color: colors.success,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '700' as const,
   },
   headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
     paddingVertical: 4,
   },
   headerLabel: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.text.muted,
   },
   headerValue: {
     fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
+    color: colors.text.secondary,
+    fontWeight: '500' as const,
   },
   fabContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: colors.border,
     gap: 6,
   },
   fabAction: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   fabActionText: {
-    color: '#ffffff',
+    color: colors.text.inverse,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
   endTripFab: {
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 8,
-    backgroundColor: '#dc2626',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.danger,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   endTripFabText: {
-    color: '#ffffff',
+    color: colors.text.inverse,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
   overlay: {
-    position: 'absolute',
+    position: 'absolute' as const,
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: colors.overlay,
+    justifyContent: 'flex-end' as const,
   },
   actionSheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 20,
@@ -458,27 +463,29 @@ const styles = StyleSheet.create({
   },
   actionSheetTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '700' as const,
+    fontFamily: fonts.bold,
+    color: colors.text.primary,
     marginBottom: 16,
   },
   fieldLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '600' as const,
+    color: colors.text.secondary,
     marginBottom: 6,
     marginTop: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.borderLight,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
+    color: colors.text.primary,
   },
   actionSheetBtns: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
     marginTop: 20,
   },
@@ -486,22 +493,22 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   actionSheetCancel: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.border,
   },
   actionSheetCancelText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '600' as const,
+    color: colors.text.secondary,
   },
   actionSheetConfirm: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
   },
   actionSheetConfirmText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontWeight: '600' as const,
+    color: colors.text.inverse,
   },
 });

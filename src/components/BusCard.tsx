@@ -1,6 +1,7 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Bus } from '../types/bus';
 import DeleteBadge from './DeleteBadge';
+import { useTheme, useThemeStyles } from '../theme';
 
 interface BusCardProps {
   bus: Bus;
@@ -10,6 +11,7 @@ interface BusCardProps {
 
 export default function BusCard({ bus, onPress, onLongPress }: BusCardProps) {
   const thumbnailSource = bus.photo1 ? { uri: bus.photo1 } : null;
+  const styles = useThemeStyles(createStyles);
 
   return (
     <TouchableOpacity
@@ -37,20 +39,20 @@ export default function BusCard({ bus, onPress, onLongPress }: BusCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   card: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    flexDirection: 'row' as const,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginHorizontal: 16,
     marginVertical: 6,
-    shadowColor: '#000',
+    shadowColor: colors.cardShadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    position: 'relative',
+    position: 'relative' as const,
   },
   thumbnail: {
     width: 80,
@@ -59,31 +61,31 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   placeholderThumb: {
-    backgroundColor: '#e5e7eb',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.border,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   placeholderText: {
-    color: '#9ca3af',
+    color: colors.text.disabled,
     fontSize: 12,
   },
   info: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'center' as const,
   },
   numero: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '700' as const,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   name: {
     fontSize: 15,
-    color: '#374151',
+    color: colors.text.secondary,
     marginBottom: 2,
   },
   seats: {
     fontSize: 13,
-    color: '#6b7280',
+    color: colors.text.muted,
   },
 });
