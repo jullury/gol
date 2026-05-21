@@ -1,0 +1,5 @@
+allowBuilds:
+  dtrace-provider: true
+  lefthook: true
+  msgpackr-extract: true
+  unrs-resolver: true

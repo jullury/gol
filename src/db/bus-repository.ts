@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 import { Bus, BusFormData } from '../types/bus';
 import { getDatabase } from './database';
 
@@ -28,7 +28,7 @@ export async function getBusById(id: string): Promise<Bus | null> {
 export async function createBus(data: BusFormData): Promise<Bus> {
   const database = await getDatabase();
   const now = Date.now();
-  const id = uuidv4();
+  const id = Crypto.randomUUID();
 
   const numberOfPlace = data.seatColumns * data.seatRows + data.driverSeatCount;
 

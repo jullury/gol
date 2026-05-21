@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 import {
   Trip,
   TripFormData,
@@ -54,7 +54,7 @@ export async function hasActiveTrip(busId: string): Promise<boolean> {
 export async function createTrip(data: TripFormData): Promise<Trip> {
   const database = await getDatabase();
   const now = Date.now();
-  const id = uuidv4();
+  const id = Crypto.randomUUID();
 
   const trip: Trip = {
     id,
@@ -86,7 +86,7 @@ export async function endTrip(id: string): Promise<Trip | null> {
 
 export async function addTripEvent(input: TripEventInput): Promise<TripEvent> {
   const database = await getDatabase();
-  const id = uuidv4();
+  const id = Crypto.randomUUID();
   const now = Date.now();
 
   const maxSeq = await database.getFirstAsync<{ maxSeq: number | null }>(

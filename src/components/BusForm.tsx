@@ -71,7 +71,8 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
       }
 
       onSave();
-    } catch {
+    } catch (e) {
+      console.log(e);
       Alert.alert('Error', 'Failed to save bus. Please try again.');
     } finally {
       setIsSaving(false);
