@@ -24,6 +24,31 @@ async function migrate(database: SQLite.SQLiteDatabase): Promise<void> {
       updatedAt INTEGER NOT NULL,
       deletedAt INTEGER
     );
+
+    CREATE TABLE IF NOT EXISTS trips (
+      id TEXT PRIMARY KEY,
+      busId TEXT NOT NULL,
+      startDateTime INTEGER NOT NULL,
+      endDateTime INTEGER,
+      createdAt INTEGER NOT NULL,
+      FOREIGN KEY (busId) REFERENCES buses(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS trip_events (
+      id TEXT PRIMARY KEY,
+      tripId TEXT NOT NULL,
+      sequence INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      label TEXT NOT NULL,
+      data TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      FOREIGN KEY (tripId) REFERENCES trips(id),
+      UNIQUE (tripId, sequence)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_trips_busId ON trips(busId);
+    CREATE INDEX IF NOT EXISTS idx_trip_events_tripId ON trip_events(tripId);
+    CREATE INDEX IF NOT EXISTS idx_trip_events_sequence ON trip_events(tripId, sequence);
   `);
 }
 

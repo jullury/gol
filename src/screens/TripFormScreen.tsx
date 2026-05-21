@@ -1,0 +1,237 @@
+import { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { getAllBuses } from '../db/bus-repository';
+import { createTrip, hasActiveTrip } from '../db/trip-repository';
+import { Bus } from '../types/bus';
+import type { TripStackParamList } from '../navigation/TripStackNavigator';
+
+export default function TripFormScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<TripStackParamList>>();
+  const [buses, setBuses] = useState<Bus[]>([]);
+  const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    loadBuses();
+  }, []);
+
+  async function loadBuses() {
+    setIsLoading(true);
+    try {
+      const data = await getAllBuses('active');
+      setBuses(data);
+    } catch {
+      Alert.alert('Error', 'Failed to load buses.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleStartTrip() {
+    if (!selectedBusId) return;
+
+    setIsSaving(true);
+    try {
+      const active = await hasActiveTrip(selectedBusId);
+      if (active) {
+        Alert.alert('Active Trip', 'This bus already has an active trip. End it first.');
+        setIsSaving(false);
+        return;
+      }
+
+      await createTrip({
+        busId: selectedBusId,
+        startDateTime: Date.now(),
+      });
+
+      navigation.goBack();
+    } catch {
+      Alert.alert('Error', 'Failed to start trip.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const handleCancel = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
+
+  if (buses.length === 0) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyText}>No buses available. Create a bus first.</Text>
+        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
+          <Text style={styles.cancelBtnText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.sectionTitle}>Select Bus</Text>
+      {buses.map((bus) => (
+        <TouchableOpacity
+          key={bus.id}
+          style={[styles.busOption, selectedBusId === bus.id && styles.busOptionSelected]}
+          onPress={() => setSelectedBusId(bus.id)}
+        >
+          <View style={styles.radioOuter}>
+            {selectedBusId === bus.id && <View style={styles.radioInner} />}
+          </View>
+          <View style={styles.busInfo}>
+            <Text style={styles.busNumero}>{bus.numero}</Text>
+            <Text style={styles.busName}>{bus.name}</Text>
+            <Text style={styles.busSeats}>{bus.numberOfPlace} seats</Text>
+          </View>
+        </TouchableOpacity>
+      ))}
+
+      <View style={styles.actions}>
+        <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={handleCancel}>
+          <Text style={styles.cancelBtnText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.btn,
+            styles.startBtn,
+            (!selectedBusId || isSaving) && styles.btnDisabled,
+          ]}
+          onPress={handleStartTrip}
+          disabled={!selectedBusId || isSaving}
+        >
+          {isSaving ? (
+            <ActivityIndicator color="#ffffff" size="small" />
+          ) : (
+            <Text style={styles.startBtnText}>Start Trip</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f3f4f6',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  busOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+  },
+  busOptionSelected: {
+    borderColor: '#2563eb',
+  },
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#2563eb',
+  },
+  busInfo: {
+    flex: 1,
+  },
+  busNumero: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  busName: {
+    fontSize: 14,
+    color: '#374151',
+    marginTop: 2,
+  },
+  busSeats: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    marginBottom: 40,
+    gap: 12,
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: '#f3f4f6',
+  },
+  cancelBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  startBtn: {
+    backgroundColor: '#2563eb',
+  },
+  startBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+});
