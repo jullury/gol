@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,8 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
 
   const [numero, setNumero] = useState(existingBus?.numero ?? '');
   const [name, setName] = useState(existingBus?.name ?? '');
-  const [numberOfPlace, setNumberOfPlace] = useState<number>(existingBus?.numberOfPlace ?? 0);
+  const [seatColumns, setSeatColumns] = useState<number>(existingBus?.seatColumns ?? 5);
+  const [seatRows, setSeatRows] = useState<number>(existingBus?.seatRows ?? 4);
   const [photos, setPhotos] = useState<(string | null)[]>([
     existingBus?.photo1 ?? null,
     existingBus?.photo2 ?? null,
@@ -32,9 +33,16 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
   ]);
   const [isSaving, setIsSaving] = useState(false);
 
+  const totalSeats = useMemo(() => {
+    const cols = seatColumns > 0 ? seatColumns : 1;
+    const rows = seatRows > 0 ? seatRows : 1;
+    return cols * rows + 2;
+  }, [seatColumns, seatRows]);
+
   const trimmedNumero = numero.trim();
   const trimmedName = name.trim();
-  const isValid = trimmedNumero.length > 0 && trimmedName.length > 0;
+  const isValid =
+    trimmedNumero.length > 0 && trimmedName.length > 0 && seatColumns > 0 && seatRows > 0;
 
   async function handleSave() {
     if (!isValid) return;
@@ -44,7 +52,9 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
       const data: BusFormData = {
         numero: trimmedNumero,
         name: trimmedName,
-        numberOfPlace,
+        numberOfPlace: totalSeats,
+        seatColumns,
+        seatRows,
         photo1: photos[0] ?? null,
         photo2: photos[1] ?? null,
         photo3: photos[2] ?? null,
@@ -62,6 +72,47 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function renderSeatPreview() {
+    const cols = seatColumns > 0 ? seatColumns : 5;
+    const rows = seatRows > 0 ? seatRows : 4;
+
+    const gridSeats: React.ReactNode[] = [];
+    for (let r = 0; r < rows; r++) {
+      const rowSeats: React.ReactNode[] = [];
+      for (let c = 0; c < cols; c++) {
+        const seatNum = 3 + r * cols + c;
+        rowSeats.push(
+          <View key={seatNum} style={[styles.previewSeat, styles.previewGridSeat]}>
+            <Text style={styles.previewSeatText}>{seatNum}</Text>
+          </View>,
+        );
+      }
+      gridSeats.push(
+        <View key={`row-${r}`} style={styles.previewRow}>
+          {rowSeats}
+        </View>,
+      );
+    }
+
+    return (
+      <View style={styles.previewContainer}>
+        <View style={styles.previewFront}>
+          <View style={[styles.previewSeat, styles.previewDriverSeat]}>
+            <Text style={styles.previewSeatText}>D</Text>
+          </View>
+          <View style={[styles.previewSeat, styles.previewGridSeat]}>
+            <Text style={styles.previewSeatText}>1</Text>
+          </View>
+          <View style={[styles.previewSeat, styles.previewGridSeat]}>
+            <Text style={styles.previewSeatText}>2</Text>
+          </View>
+        </View>
+        <View style={styles.previewDivider} />
+        {gridSeats}
+      </View>
+    );
   }
 
   return (
@@ -87,15 +138,48 @@ export default function BusForm({ existingBus, onSave, onCancel }: BusFormProps)
       />
       {name.trim().length === 0 && <Text style={styles.error}>Required</Text>}
 
-      <Text style={styles.fieldLabel}>Number of Places *</Text>
-      <TextInput
-        style={styles.input}
-        value={numberOfPlace > 0 ? String(numberOfPlace) : ''}
-        onChangeText={(text) => setNumberOfPlace(Number(text) || 0)}
-        placeholder="e.g. 22"
-        keyboardType="numeric"
-        editable={!isSaving}
-      />
+      <Text style={styles.fieldLabel}>Seat Grid</Text>
+      <Text style={styles.hint}>
+        Define the seat layout. Total = columns × rows + 2 (driver area)
+      </Text>
+
+      <View style={styles.gridRow}>
+        <View style={styles.gridField}>
+          <Text style={styles.fieldLabel}>Columns</Text>
+          <TextInput
+            style={styles.input}
+            value={seatColumns > 0 ? String(seatColumns) : ''}
+            onChangeText={(text) => setSeatColumns(Math.max(1, Number(text) || 0))}
+            placeholder="e.g. 5"
+            keyboardType="numeric"
+            editable={!isSaving}
+          />
+        </View>
+        <View style={styles.gridField}>
+          <Text style={styles.fieldLabel}>Rows</Text>
+          <TextInput
+            style={styles.input}
+            value={seatRows > 0 ? String(seatRows) : ''}
+            onChangeText={(text) => setSeatRows(Math.max(1, Number(text) || 0))}
+            placeholder="e.g. 4"
+            keyboardType="numeric"
+            editable={!isSaving}
+          />
+        </View>
+      </View>
+
+      {seatColumns > 0 && seatRows > 0 && (
+        <View style={styles.totalContainer}>
+          <Text style={styles.totalText}>
+            Total:{' '}
+            <Text style={styles.totalHighlight}>
+              {seatColumns} × {seatRows} + 2 = {totalSeats} seats
+            </Text>
+          </Text>
+        </View>
+      )}
+
+      {seatColumns > 0 && seatRows > 0 && renderSeatPreview()}
 
       <PhotoPicker photos={photos} onPhotosChange={setPhotos} />
 
@@ -136,6 +220,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 12,
   },
+  hint: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 8,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#d1d5db',
@@ -148,6 +237,72 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontSize: 12,
     marginTop: 2,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  gridField: {
+    flex: 1,
+  },
+  totalContainer: {
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  totalText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  totalHighlight: {
+    fontWeight: '700',
+    color: '#16a34a',
+  },
+  previewContainer: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  previewFront: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingBottom: 8,
+  },
+  previewDriverSeat: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+  },
+  previewDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginBottom: 8,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 4,
+  },
+  previewSeat: {
+    width: 32,
+    height: 28,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewGridSeat: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d1d5db',
+  },
+  previewSeatText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#374151',
   },
   actions: {
     flexDirection: 'row',

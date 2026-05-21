@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -70,6 +70,21 @@ export default function TripDetailScreen() {
   }
 
   const state: TripState | null = trip && events.length > 0 ? reconstructState(trip, events) : null;
+
+  const occupiedSeats = useMemo(() => {
+    const seats = new Set<number>();
+    if (state && bus) {
+      for (const passenger of state.passengers.values()) {
+        if (passenger.alightedAt === null) {
+          const seatNum = parseInt(passenger.label, 10);
+          if (!isNaN(seatNum) && seatNum >= 1 && seatNum <= bus.numberOfPlace) {
+            seats.add(seatNum);
+          }
+        }
+      }
+    }
+    return seats;
+  }, [state, bus]);
 
   function handleEndTrip() {
     Alert.alert('End Trip', 'Are you sure you want to end this trip?', [
@@ -197,7 +212,13 @@ export default function TripDetailScreen() {
           )}
         </View>
 
-        <TripMinimap events={events} scrollEnabled={!isActive} />
+        {bus && (
+          <TripMinimap
+            seatColumns={bus.seatColumns}
+            seatRows={bus.seatRows}
+            occupiedSeats={occupiedSeats}
+          />
+        )}
 
         <CashFlowSummary
           totalCashIn={state?.totalCashIn ?? 0}

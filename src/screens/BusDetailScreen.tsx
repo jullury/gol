@@ -122,6 +122,13 @@ export default function BusDetailScreen() {
         </View>
 
         <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Seat Grid</Text>
+          <Text style={styles.detailValue}>
+            {bus.seatColumns} × {bus.seatRows} + 2
+          </Text>
+        </View>
+
+        <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Created</Text>
           <Text style={styles.detailValue}>{formatDate(bus.createdAt)}</Text>
         </View>

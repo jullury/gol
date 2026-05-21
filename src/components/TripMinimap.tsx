@@ -1,92 +1,102 @@
-import { useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { TripEvent, TripEventType } from '../types/trip';
 
 interface TripMinimapProps {
-  events: TripEvent[];
-  scrollEnabled: boolean;
+  seatColumns: number;
+  seatRows: number;
+  occupiedSeats: Set<number>;
 }
 
-const eventColors: Record<TripEventType, string> = {
-  TRIP_START: '#16a34a',
-  TRIP_END: '#dc2626',
-  PASSENGER_BOARD: '#2563eb',
-  PASSENGER_ALIGHT: '#ea580c',
-  CASH_IN: '#16a34a',
-  CASH_OUT: '#dc2626',
-};
+export default function TripMinimap({ seatColumns, seatRows, occupiedSeats }: TripMinimapProps) {
+  const cols = seatColumns > 0 ? seatColumns : 5;
+  const rows = seatRows > 0 ? seatRows : 4;
 
-const eventIcons: Record<TripEventType, string> = {
-  TRIP_START: '\u25B6',
-  TRIP_END: '\u25A0',
-  PASSENGER_BOARD: '\u2795',
-  PASSENGER_ALIGHT: '\u2796',
-  CASH_IN: '\u2193',
-  CASH_OUT: '\u2191',
-};
+  function renderGrid() {
+    const gridRows: React.ReactNode[] = [];
 
-const eventLabels: Record<TripEventType, string> = {
-  TRIP_START: 'Start',
-  TRIP_END: 'End',
-  PASSENGER_BOARD: 'Board',
-  PASSENGER_ALIGHT: 'Alight',
-  CASH_IN: 'In',
-  CASH_OUT: 'Out',
-};
-
-function formatTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-export default function TripMinimap({ events, scrollEnabled }: TripMinimapProps) {
-  const scrollRef = useRef<ScrollView>(null);
-
-  useEffect(() => {
-    if (!scrollEnabled && scrollRef.current && events.length > 0) {
-      scrollRef.current.scrollToEnd({ animated: false });
+    for (let r = 0; r < rows; r++) {
+      const seats: React.ReactNode[] = [];
+      for (let c = 0; c < cols; c++) {
+        const seatNum = 3 + r * cols + c;
+        const occupied = occupiedSeats.has(seatNum);
+        seats.push(
+          <View
+            key={seatNum}
+            style={[styles.seat, occupied ? styles.seatOccupied : styles.seatEmpty]}
+          >
+            <Text
+              style={[styles.seatText, occupied ? styles.seatTextOccupied : styles.seatTextEmpty]}
+            >
+              {seatNum}
+            </Text>
+          </View>,
+        );
+      }
+      gridRows.push(
+        <View key={`grid-row-${r}`} style={styles.seatRow}>
+          {seats}
+        </View>,
+      );
     }
-  }, [events, scrollEnabled]);
-
-  if (events.length === 0) {
-    return null;
+    return gridRows;
   }
+
+  const totalSeats = cols * rows + 2;
+  const occupiedCount = occupiedSeats.size;
+  const freeCount = totalSeats - occupiedCount;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Timeline</Text>
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        scrollEnabled={scrollEnabled}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {events.map((event, index) => {
-          const color = eventColors[event.type];
-          const isLast = index === events.length - 1;
+      <Text style={styles.title}>Seat Map</Text>
 
-          return (
-            <View key={event.id} style={styles.eventGroup}>
-              <View style={styles.dotContainer}>
-                <View style={[styles.dot, { backgroundColor: color }]}>
-                  <Text style={styles.dotIcon}>{eventIcons[event.type]}</Text>
-                </View>
-                {!isLast && <View style={styles.line} />}
-              </View>
-              <View style={styles.labelContainer}>
-                <Text style={[styles.eventType, { color }]} numberOfLines={1}>
-                  {eventLabels[event.type]}
+      <View style={styles.legend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, styles.legendOccupied]} />
+          <Text style={styles.legendText}>Occupied ({occupiedCount})</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, styles.legendFree]} />
+          <Text style={styles.legendText}>Free ({freeCount})</Text>
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.minimap}>
+          <View style={styles.driverArea}>
+            <View style={[styles.seat, styles.seatDriver]}>
+              <Text style={styles.seatDriverText}>D</Text>
+            </View>
+            <View style={styles.frontRow}>
+              <View
+                style={[styles.seat, occupiedSeats.has(1) ? styles.seatOccupied : styles.seatEmpty]}
+              >
+                <Text
+                  style={[
+                    styles.seatText,
+                    occupiedSeats.has(1) ? styles.seatTextOccupied : styles.seatTextEmpty,
+                  ]}
+                >
+                  1
                 </Text>
-                <Text style={styles.eventTime} numberOfLines={1}>
-                  {formatTime(event.createdAt)}
+              </View>
+              <View
+                style={[styles.seat, occupiedSeats.has(2) ? styles.seatOccupied : styles.seatEmpty]}
+              >
+                <Text
+                  style={[
+                    styles.seatText,
+                    occupiedSeats.has(2) ? styles.seatTextOccupied : styles.seatTextEmpty,
+                  ]}
+                >
+                  2
                 </Text>
               </View>
             </View>
-          );
-        })}
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.grid}>{renderGrid()}</View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -109,49 +119,95 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#111827',
+    marginBottom: 8,
+  },
+  legend: {
+    flexDirection: 'row',
+    gap: 16,
     marginBottom: 12,
   },
-  scrollContent: {
-    alignItems: 'flex-end',
-    paddingRight: 8,
-  },
-  eventGroup: {
+  legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
-  dotContainer: {
-    flexDirection: 'row',
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+  },
+  legendOccupied: {
+    backgroundColor: '#2563eb',
+  },
+  legendFree: {
+    backgroundColor: '#e5e7eb',
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  minimap: {
     alignItems: 'center',
   },
-  dot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  driverArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingBottom: 8,
+  },
+  frontRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  divider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginBottom: 8,
+  },
+  grid: {
+    alignItems: 'center',
+  },
+  seatRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  seat: {
+    width: 36,
+    height: 32,
+    borderRadius: 4,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dotIcon: {
-    fontSize: 10,
-    color: '#ffffff',
-    fontWeight: '700',
+  seatEmpty: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d1d5db',
   },
-  line: {
-    width: 20,
-    height: 2,
-    backgroundColor: '#d1d5db',
+  seatOccupied: {
+    backgroundColor: '#2563eb',
+    borderColor: '#1d4ed8',
   },
-  labelContainer: {
-    marginLeft: 4,
-    marginRight: 8,
-    minWidth: 40,
+  seatDriver: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    width: 36,
+    height: 32,
   },
-  eventType: {
+  seatText: {
     fontSize: 11,
     fontWeight: '600',
   },
-  eventTime: {
-    fontSize: 9,
-    color: '#9ca3af',
-    marginTop: 1,
+  seatTextEmpty: {
+    color: '#374151',
+  },
+  seatTextOccupied: {
+    color: '#ffffff',
+  },
+  seatDriverText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400e',
   },
 });

@@ -17,6 +17,8 @@ async function migrate(database: SQLite.SQLiteDatabase): Promise<void> {
       numero TEXT NOT NULL,
       name TEXT NOT NULL,
       numberOfPlace INTEGER NOT NULL,
+      seatColumns INTEGER NOT NULL DEFAULT 5,
+      seatRows INTEGER NOT NULL DEFAULT 0,
       photo1 TEXT,
       photo2 TEXT,
       photo3 TEXT,
@@ -50,6 +52,17 @@ async function migrate(database: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_trip_events_tripId ON trip_events(tripId);
     CREATE INDEX IF NOT EXISTS idx_trip_events_sequence ON trip_events(tripId, sequence);
   `);
+
+  const columns = await database.getAllAsync<{ name: string }>(
+    "SELECT name FROM pragma_table_info('buses')",
+  );
+  const columnNames = columns.map((c) => c.name);
+  if (!columnNames.includes('seatColumns')) {
+    await database.execAsync('ALTER TABLE buses ADD COLUMN seatColumns INTEGER NOT NULL DEFAULT 5');
+  }
+  if (!columnNames.includes('seatRows')) {
+    await database.execAsync('ALTER TABLE buses ADD COLUMN seatRows INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 export async function closeDatabase(): Promise<void> {
