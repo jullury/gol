@@ -1,6 +1,7 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MAX_PHOTOS } from '../constants/bus';
+import { useTheme, useThemeStyles } from '../theme';
 
 interface PhotoPickerProps {
   photos: (string | null)[];
@@ -8,6 +9,9 @@ interface PhotoPickerProps {
 }
 
 export default function PhotoPicker({ photos, onPhotosChange }: PhotoPickerProps) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
+
   const filledPhotos = photos.filter((p): p is string => p !== null);
   const canAddMore = filledPhotos.length < MAX_PHOTOS;
 
@@ -75,17 +79,26 @@ export default function PhotoPicker({ photos, onPhotosChange }: PhotoPickerProps
             {photo ? (
               <View style={styles.photoContainer}>
                 <Image source={{ uri: photo }} style={styles.photo} />
-                <TouchableOpacity style={styles.removeBtn} onPress={() => removePhoto(index)}>
+                <TouchableOpacity
+                  style={[styles.removeBtn, { backgroundColor: colors.danger }]}
+                  onPress={() => removePhoto(index)}
+                >
                   <Text style={styles.removeBtnText}>X</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity
-                style={styles.addSlot}
+                style={[
+                  styles.addSlot,
+                  {
+                    backgroundColor: colors.surfaceAlt,
+                    borderColor: colors.borderLight,
+                  },
+                ]}
                 onPress={() => showPicker(index)}
                 disabled={!canAddMore}
               >
-                <Text style={styles.addIcon}>+</Text>
+                <Text style={[styles.addIcon, { color: colors.text.disabled }]}>+</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -95,18 +108,18 @@ export default function PhotoPicker({ photos, onPhotosChange }: PhotoPickerProps
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   container: {
     marginBottom: 16,
   },
   label: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '600' as const,
+    color: colors.text.secondary,
     marginBottom: 8,
   },
   grid: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 10,
   },
   slot: {
@@ -116,7 +129,7 @@ const styles = StyleSheet.create({
   photoContainer: {
     width: 100,
     height: 100,
-    position: 'relative',
+    position: 'relative' as const,
   },
   photo: {
     width: 100,
@@ -124,34 +137,30 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   removeBtn: {
-    position: 'absolute',
+    position: 'absolute' as const,
     top: -6,
     right: -6,
-    backgroundColor: '#ef4444',
     width: 24,
     height: 24,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   removeBtnText: {
-    color: '#ffffff',
+    color: colors.text.inverse,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '700' as const,
   },
   addSlot: {
     width: 100,
     height: 100,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#d1d5db',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f9fafb',
+    borderStyle: 'dashed' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   addIcon: {
     fontSize: 32,
-    color: '#9ca3af',
   },
 });

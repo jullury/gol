@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  StyleSheet,
   ActivityIndicator,
   Dimensions,
   Linking,
@@ -17,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Bus } from '../types/bus';
 import { getBusById, softDeleteBus, restoreBus } from '../db/bus-repository';
 import type { BusStackParamList } from '../navigation/BusStackNavigator';
+import { useTheme, useThemeStyles } from '../theme';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -27,6 +27,8 @@ export default function BusDetailScreen() {
 
   const [bus, setBus] = useState<Bus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { colors, fonts } = useTheme();
+  const styles = useThemeStyles(createStyles);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,7 +85,7 @@ export default function BusDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -170,19 +172,19 @@ export default function BusDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
   center: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   errorText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: colors.text.muted,
   },
   gallery: {
     height: 260,
@@ -190,53 +192,54 @@ const styles = StyleSheet.create({
   galleryImage: {
     width: screenWidth,
     height: 260,
-    resizeMode: 'cover',
+    resizeMode: 'cover' as const,
   },
   noPhoto: {
     height: 200,
-    backgroundColor: '#e5e7eb',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.border,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   noPhotoText: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: colors.text.disabled,
   },
   info: {
     padding: 20,
   },
   numero: {
     fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
+    fontWeight: '800' as const,
+    fontFamily: fonts.extrabold,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   name: {
     fontSize: 18,
-    color: '#4b5563',
+    color: colors.text.muted,
     marginBottom: 20,
   },
   detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: colors.border,
   },
   detailLabel: {
     fontSize: 15,
-    color: '#6b7280',
+    color: colors.text.muted,
   },
   detailValue: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '600' as const,
+    color: colors.text.primary,
   },
   deletedText: {
-    color: '#dc2626',
+    color: colors.danger,
   },
   actions: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
     marginTop: 28,
   },
@@ -244,34 +247,34 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   editBtn: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
   },
   editBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontWeight: '600' as const,
+    color: colors.text.inverse,
   },
   deleteBtn: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: colors.dangerBg,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: colors.dangerBorder,
   },
   deleteBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#dc2626',
+    fontWeight: '600' as const,
+    color: colors.danger,
   },
   restoreBtn: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: colors.successBg,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: colors.successBorder,
   },
   restoreBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#16a34a',
+    fontWeight: '600' as const,
+    color: colors.success,
   },
 });

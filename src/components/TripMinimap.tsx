@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { useTheme, useThemeStyles } from '../theme';
 
 interface TripMinimapProps {
   seatColumns: number;
@@ -24,6 +25,9 @@ export default function TripMinimap({
   selectedSeatLabel,
   onSeatSelect,
 }: TripMinimapProps) {
+  const { colors, fonts } = useTheme();
+  const styles = useThemeStyles(createStyles);
+
   const cols = seatColumns > 0 ? seatColumns : 5;
   const rows = seatRows > 0 ? seatRows : 4;
   const gridStart = 1 + driverSeatCount;
@@ -99,16 +103,26 @@ export default function TripMinimap({
             onPress={() => handleSeatPress(seatNum)}
             style={[
               styles.seat,
-              occupied ? styles.seatOccupied : styles.seatEmpty,
-              isSelected && styles.seatSelected,
-              isTarget && styles.seatDropTarget,
+              occupied
+                ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                : { backgroundColor: colors.surface, borderColor: colors.borderLight },
+              isSelected && {
+                backgroundColor: colors.accentLight,
+                borderColor: colors.warning,
+                borderWidth: 2,
+              },
+              isTarget && {
+                backgroundColor: colors.dropTargetBg,
+                borderColor: colors.dropTargetBorder,
+                borderWidth: 2,
+              },
             ]}
           >
             <Text
               style={[
                 styles.seatText,
-                occupied ? styles.seatTextOccupied : styles.seatTextEmpty,
-                isSelected && styles.seatTextSelected,
+                occupied ? { color: colors.text.inverse } : { color: colors.text.secondary },
+                isSelected && { color: colors.warningText },
               ]}
             >
               {seatNum}
@@ -123,6 +137,51 @@ export default function TripMinimap({
       );
     }
     return gridRows;
+  }
+
+  function renderDriverSeats() {
+    const driverSeats: React.ReactNode[] = [];
+    for (let i = 1; i <= driverSeatCount; i++) {
+      const seatNum = i;
+      const occupied = occupiedSeats.has(seatNum);
+      const isSelected = selectedSeatLabel === seatNum.toString();
+      const isTarget = isDropTarget(seatNum);
+
+      driverSeats.push(
+        <TouchableOpacity
+          key={seatNum}
+          activeOpacity={0.6}
+          onPress={() => handleSeatPress(seatNum)}
+          style={[
+            styles.seat,
+            occupied
+              ? { backgroundColor: colors.primary, borderColor: colors.primary }
+              : { backgroundColor: colors.surface, borderColor: colors.borderLight },
+            isSelected && {
+              backgroundColor: colors.accentLight,
+              borderColor: colors.warning,
+              borderWidth: 2,
+            },
+            isTarget && {
+              backgroundColor: colors.dropTargetBg,
+              borderColor: colors.dropTargetBorder,
+              borderWidth: 2,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.seatText,
+              occupied ? { color: colors.text.inverse } : { color: colors.text.secondary },
+              isSelected && { color: colors.warningText },
+            ]}
+          >
+            {seatNum}
+          </Text>
+        </TouchableOpacity>,
+      );
+    }
+    return driverSeats;
   }
 
   function renderTempSeats() {
@@ -140,16 +199,31 @@ export default function TripMinimap({
           onPress={() => handleTempSeatPress(label)}
           style={[
             styles.tempSeat,
-            occupied && styles.tempSeatOccupied,
-            isSelected && styles.seatSelected,
-            isTarget && styles.tempSeatDropTarget,
+            occupied
+              ? {
+                  backgroundColor: colors.primary,
+                  borderColor: colors.primary,
+                  borderStyle: 'solid',
+                }
+              : { backgroundColor: colors.surface, borderColor: colors.borderLight },
+            isSelected && {
+              backgroundColor: colors.accentLight,
+              borderColor: colors.warning,
+              borderWidth: 2,
+            },
+            isTarget && {
+              backgroundColor: colors.dropTargetBg,
+              borderColor: colors.dropTargetBorder,
+              borderWidth: 2,
+              borderStyle: 'solid',
+            },
           ]}
         >
           <Text
             style={[
               styles.tempSeatText,
-              occupied && styles.tempSeatTextOccupied,
-              isSelected && styles.seatTextSelected,
+              occupied && { color: colors.text.inverse },
+              isSelected && { color: colors.warningText },
             ]}
           >
             T{i}
@@ -166,17 +240,17 @@ export default function TripMinimap({
 
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, styles.legendOccupied]} />
+          <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
           <Text style={styles.legendText}>Occupied ({occupiedCount})</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, styles.legendFree]} />
+          <View style={[styles.legendDot, { backgroundColor: colors.border }]} />
           <Text style={styles.legendText}>Free ({freeSeatsCount})</Text>
         </View>
       </View>
 
       {selectedSeatLabel !== null && (
-        <Text style={styles.moveHint}>
+        <Text style={[styles.moveHint, { color: colors.warning }]}>
           Tap a free seat to move passenger, or tap the selected seat to cancel.
         </Text>
       )}
@@ -184,51 +258,26 @@ export default function TripMinimap({
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.minimap}>
           <View style={styles.driverArea}>
-            <View style={[styles.seat, styles.seatDriver]}>
-              <Text style={styles.seatDriverText}>D</Text>
+            <View
+              style={[
+                styles.seat,
+                styles.seatDriver,
+                { backgroundColor: colors.warningBg, borderColor: colors.warningBorder },
+              ]}
+            >
+              <Text style={[styles.seatText, { color: colors.warningText }]}>D</Text>
             </View>
-            <View style={styles.frontRow}>
-              {Array.from({ length: driverSeatCount }, (_, i) => {
-                const seatNum = i + 1;
-                const occupied = occupiedSeats.has(seatNum);
-                const isSelected = selectedSeatLabel === seatNum.toString();
-                const isTarget = isDropTarget(seatNum);
-
-                return (
-                  <TouchableOpacity
-                    key={seatNum}
-                    activeOpacity={0.6}
-                    onPress={() => handleSeatPress(seatNum)}
-                    style={[
-                      styles.seat,
-                      occupied ? styles.seatOccupied : styles.seatEmpty,
-                      isSelected && styles.seatSelected,
-                      isTarget && styles.seatDropTarget,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.seatText,
-                        occupied ? styles.seatTextOccupied : styles.seatTextEmpty,
-                        isSelected && styles.seatTextSelected,
-                      ]}
-                    >
-                      {seatNum}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <View style={styles.frontRow}>{renderDriverSeats()}</View>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <View style={styles.grid}>{renderGrid()}</View>
         </View>
       </ScrollView>
 
       {showTempSeats && (
-        <View style={styles.tempSection}>
+        <View style={[styles.tempSection, { borderTopColor: colors.border }]}>
           <Text style={styles.tempSectionTitle}>Temporary Seats (Swap)</Text>
           <View style={styles.tempRow}>{renderTempSeats()}</View>
         </View>
@@ -237,14 +286,14 @@ export default function TripMinimap({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   container: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginVertical: 8,
-    shadowColor: '#000',
+    shadowColor: colors.cardShadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -252,18 +301,19 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '700' as const,
+    fontFamily: fonts.bold,
+    color: colors.text.primary,
     marginBottom: 8,
   },
   legend: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 16,
     marginBottom: 12,
   },
   legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 4,
   },
   legendDot: {
@@ -271,47 +321,39 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 2,
   },
-  legendOccupied: {
-    backgroundColor: '#2563eb',
-  },
-  legendFree: {
-    backgroundColor: '#e5e7eb',
-  },
   legendText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.text.muted,
   },
   moveHint: {
     fontSize: 12,
-    color: '#d97706',
-    fontWeight: '600',
+    fontWeight: '600' as const,
     marginBottom: 8,
-    fontStyle: 'italic',
+    fontStyle: 'italic' as const,
   },
   minimap: {
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   driverArea: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 8,
     paddingBottom: 8,
   },
   frontRow: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 6,
   },
   divider: {
-    width: '100%',
+    width: '100%' as const,
     height: 1,
-    backgroundColor: '#e5e7eb',
     marginBottom: 8,
   },
   grid: {
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   seatRow: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 6,
     marginBottom: 6,
   },
@@ -320,66 +362,31 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 4,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  seatEmpty: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d1d5db',
-  },
-  seatOccupied: {
-    backgroundColor: '#2563eb',
-    borderColor: '#1d4ed8',
-  },
-  seatSelected: {
-    backgroundColor: '#fbbf24',
-    borderColor: '#d97706',
-    borderWidth: 2,
-  },
-  seatDropTarget: {
-    backgroundColor: '#d1fae5',
-    borderColor: '#10b981',
-    borderWidth: 2,
-  },
-  seatText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  seatTextEmpty: {
-    color: '#374151',
-  },
-  seatTextOccupied: {
-    color: '#ffffff',
-  },
-  seatTextSelected: {
-    color: '#92400e',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   seatDriver: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#f59e0b',
     width: 36,
     height: 32,
   },
-  seatDriverText: {
+  seatText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#92400e',
+    fontWeight: '600' as const,
   },
   tempSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
   },
   tempSectionTitle: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#6b7280',
+    fontWeight: '600' as const,
+    color: colors.text.muted,
     marginBottom: 8,
   },
   tempRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
     gap: 6,
   },
   tempSeat: {
@@ -387,29 +394,13 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-  },
-  tempSeatOccupied: {
-    backgroundColor: '#2563eb',
-    borderColor: '#1d4ed8',
-    borderStyle: 'solid',
-  },
-  tempSeatDropTarget: {
-    backgroundColor: '#d1fae5',
-    borderColor: '#10b981',
-    borderWidth: 2,
-    borderStyle: 'solid',
+    borderStyle: 'dashed' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   tempSeatText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
-  tempSeatTextOccupied: {
-    color: '#ffffff',
+    fontWeight: '600' as const,
+    color: colors.text.disabled,
   },
 });

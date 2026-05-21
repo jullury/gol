@@ -1,5 +1,6 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Trip } from '../types/trip';
+import { useTheme, useThemeStyles } from '../theme';
 
 interface TripCardProps {
   trip: Trip;
@@ -10,6 +11,7 @@ interface TripCardProps {
 
 export default function TripCard({ trip, busNumero, onPress, onLongPress }: TripCardProps) {
   const isActive = trip.endDateTime === null;
+  const styles = useThemeStyles(createStyles);
 
   function formatDate(ts: number): string {
     return new Date(ts).toLocaleDateString('en-US', {
@@ -50,53 +52,53 @@ export default function TripCard({ trip, busNumero, onPress, onLongPress }: Trip
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     marginHorizontal: 16,
     marginVertical: 6,
-    shadowColor: '#000',
+    shadowColor: colors.cardShadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
     marginBottom: 8,
   },
   busLabel: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '700' as const,
+    color: colors.text.primary,
   },
   activeBadge: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: colors.successBg,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
   activeBadgeText: {
-    color: '#16a34a',
+    color: colors.success,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '700' as const,
   },
   row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
     paddingVertical: 4,
   },
   label: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.text.muted,
   },
   value: {
     fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
+    color: colors.text.secondary,
+    fontWeight: '500' as const,
   },
 });

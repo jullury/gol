@@ -1,5 +1,6 @@
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { View, Text, FlatList } from 'react-native';
 import { TripEvent, TripEventType } from '../types/trip';
+import { useTheme, useThemeStyles } from '../theme';
 
 interface TripEventLogProps {
   events: TripEvent[];
@@ -55,6 +56,9 @@ function formatEventDetail(event: TripEvent): string {
 }
 
 export default function TripEventLog({ events }: TripEventLogProps) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
+
   if (events.length === 0) {
     return (
       <View style={styles.empty}>
@@ -71,7 +75,7 @@ export default function TripEventLog({ events }: TripEventLogProps) {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.eventRow}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.border }]}>
               <Text style={styles.icon}>{eventIcons[item.type]}</Text>
             </View>
             <View style={styles.eventContent}>
@@ -87,14 +91,14 @@ export default function TripEventLog({ events }: TripEventLogProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   container: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginVertical: 8,
-    shadowColor: '#000',
+    shadowColor: colors.cardShadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -102,32 +106,32 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '700' as const,
+    fontFamily: fonts.bold,
+    color: colors.text.primary,
     marginBottom: 12,
   },
   empty: {
-    alignItems: 'center',
+    alignItems: 'center' as const,
     paddingVertical: 20,
   },
   emptyText: {
-    color: '#9ca3af',
+    color: colors.text.disabled,
     fontSize: 14,
   },
   eventRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: colors.border,
   },
   iconContainer: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     marginRight: 10,
   },
   icon: {
@@ -138,17 +142,17 @@ const styles = StyleSheet.create({
   },
   eventType: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '600' as const,
+    color: colors.text.primary,
     marginBottom: 2,
   },
   eventDetail: {
     fontSize: 13,
-    color: '#6b7280',
+    color: colors.text.muted,
   },
   eventTime: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: colors.text.disabled,
     marginLeft: 8,
     marginTop: 2,
   },

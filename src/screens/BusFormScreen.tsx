@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, ActivityIndicator, Alert } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,6 +7,7 @@ import BusForm from '../components/BusForm';
 import { getBusById } from '../db/bus-repository';
 import { Bus } from '../types/bus';
 import type { BusStackParamList } from '../navigation/BusStackNavigator';
+import { useTheme, useThemeStyles } from '../theme';
 
 export default function BusFormScreen() {
   const route = useRoute<RouteProp<BusStackParamList, 'BusForm'>>();
@@ -15,6 +16,8 @@ export default function BusFormScreen() {
 
   const [existingBus, setExistingBus] = useState<Bus | undefined>();
   const [isLoading, setIsLoading] = useState(!!busId);
+  const { colors, fonts } = useTheme();
+  const styles = useThemeStyles(createStyles);
 
   useEffect(() => {
     if (busId) {
@@ -51,7 +54,7 @@ export default function BusFormScreen() {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -59,10 +62,10 @@ export default function BusFormScreen() {
   return <BusForm existingBus={existingBus} onSave={handleSave} onCancel={handleCancel} />;
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   loading: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
 });
