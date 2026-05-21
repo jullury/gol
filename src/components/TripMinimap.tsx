@@ -8,10 +8,21 @@ interface TripMinimapProps {
   driverSeatCount: number;
   occupiedSeats: Set<number>;
   onMovePassenger: (fromLabel: string, toLabel: string) => void;
+  onBoardSeat: (label: string) => void;
+  onOccupiedSeatTap: (label: string) => void;
   tempSeats: string[];
   selectedSeatLabel: string | null;
   onSeatSelect: (label: string | null) => void;
 }
+
+const TEMP_SEAT_BORDER = '#a855f7';
+
+const SEAT_W = 44;
+const SEAT_H = 30;
+const SEAT_MX = 2;
+const AISLE_W = 20;
+const ROW_LABEL_W = 28;
+const COL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const MAX_TEMP_SEATS = 8;
 
@@ -21,6 +32,8 @@ export default function TripMinimap({
   driverSeatCount,
   occupiedSeats,
   onMovePassenger,
+  onBoardSeat,
+  onOccupiedSeatTap,
   tempSeats,
   selectedSeatLabel,
   onSeatSelect,
@@ -40,6 +53,10 @@ export default function TripMinimap({
   const showTempSeats =
     (selectedSeatLabel !== null && freeSeatsCount === 0) || tempSeats.length > 0;
 
+  const aisleAfterCol = Math.floor(cols / 2);
+  const leftColCount = aisleAfterCol;
+  const rightColCount = cols - aisleAfterCol;
+
   function isDropTarget(seatNum: number): boolean {
     if (!selectedSeatLabel) return false;
     const label = seatNum.toString();
@@ -58,7 +75,9 @@ export default function TripMinimap({
 
     if (selectedSeatLabel === null) {
       if (occupiedSeats.has(seatNum)) {
-        onSeatSelect(label);
+        onOccupiedSeatTap(label);
+      } else {
+        onBoardSeat(label);
       }
     } else {
       if (label === selectedSeatLabel) {
@@ -73,7 +92,9 @@ export default function TripMinimap({
   function handleTempSeatPress(tempLabel: string) {
     if (selectedSeatLabel === null) {
       if (occupiedTempSet.has(tempLabel)) {
-        onSeatSelect(tempLabel);
+        onOccupiedSeatTap(tempLabel);
+      } else {
+        onBoardSeat(tempLabel);
       }
     } else {
       if (tempLabel === selectedSeatLabel) {
@@ -85,153 +106,151 @@ export default function TripMinimap({
     }
   }
 
-  function renderGrid() {
-    const gridRows: React.ReactNode[] = [];
+  function renderSeatTile(seatNum: number) {
+    const occupied = occupiedSeats.has(seatNum);
+    const isSelected = selectedSeatLabel === seatNum.toString();
+    const isTarget = isDropTarget(seatNum);
 
+    let bg = occupied ? colors.primary : colors.successBg;
+    let topColor = occupied ? colors.primaryDark : colors.successBorder;
+    let textColor = occupied ? colors.text.inverse : colors.success;
+    let frameBorder: object = {};
+
+    if (isSelected) {
+      bg = colors.warningBg;
+      topColor = colors.warningBorder;
+      textColor = colors.warningText;
+      frameBorder = {
+        borderWidth: 2,
+        borderColor: colors.warningBorder,
+        borderStyle: 'solid' as const,
+      };
+    } else if (isTarget) {
+      bg = colors.dropTargetBg;
+      topColor = colors.dropTargetBorder;
+      textColor = colors.success;
+      frameBorder = {
+        borderWidth: 2,
+        borderColor: colors.dropTargetBorder,
+        borderStyle: 'dashed' as const,
+      };
+    }
+
+    return (
+      <TouchableOpacity
+        key={seatNum}
+        activeOpacity={0.7}
+        onPress={() => handleSeatPress(seatNum)}
+        style={[styles.seatTile, { backgroundColor: bg, borderTopColor: topColor }, frameBorder]}
+      >
+        <Text style={[styles.seatNum, { color: textColor }]}>{seatNum}</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  function renderDriverRow() {
+    if (driverSeatCount === 0) return null;
+    const passengerSeats = Array.from({ length: driverSeatCount }, (_, i) => i + 1);
+    return (
+      <View style={styles.driverRow}>
+        <View style={styles.steeringWheel}>
+          <View style={styles.steeringHub} />
+        </View>
+        <View style={[styles.seatTile, styles.driverSeatTile]}>
+          <Text style={[styles.seatNum, styles.driverSeatNum]}>D</Text>
+        </View>
+        <View style={{ flex: 1 }} />
+        {passengerSeats.map((seatNum) => renderSeatTile(seatNum))}
+      </View>
+    );
+  }
+
+  function renderColumnHeaders() {
+    return (
+      <View style={styles.headerRow}>
+        <View style={{ width: ROW_LABEL_W }} />
+        {Array.from({ length: leftColCount }, (_, c) => (
+          <View key={`lh-${c}`} style={styles.colHeader}>
+            <Text style={styles.colHeaderText}>{COL_LETTERS[c]}</Text>
+          </View>
+        ))}
+        {leftColCount > 0 && <View style={{ width: AISLE_W }} />}
+        {Array.from({ length: rightColCount }, (_, c) => (
+          <View key={`rh-${c}`} style={styles.colHeader}>
+            <Text style={styles.colHeaderText}>{COL_LETTERS[leftColCount + c]}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  function renderSeatRows() {
+    const result: React.ReactNode[] = [];
     for (let r = 0; r < rows; r++) {
-      const seats: React.ReactNode[] = [];
-      for (let c = 0; c < cols; c++) {
-        const seatNum = gridStart + r * cols + c;
-        const occupied = occupiedSeats.has(seatNum);
-        const isSelected = selectedSeatLabel === seatNum.toString();
-        const isTarget = isDropTarget(seatNum);
-
-        seats.push(
-          <TouchableOpacity
-            key={seatNum}
-            activeOpacity={0.6}
-            onPress={() => handleSeatPress(seatNum)}
-            style={[
-              styles.seat,
-              occupied
-                ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                : { backgroundColor: colors.surface, borderColor: colors.borderLight },
-              isSelected && {
-                backgroundColor: colors.accentLight,
-                borderColor: colors.warning,
-                borderWidth: 2,
-              },
-              isTarget && {
-                backgroundColor: colors.dropTargetBg,
-                borderColor: colors.dropTargetBorder,
-                borderWidth: 2,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.seatText,
-                occupied ? { color: colors.text.inverse } : { color: colors.text.secondary },
-                isSelected && { color: colors.warningText },
-              ]}
-            >
-              {seatNum}
-            </Text>
-          </TouchableOpacity>,
-        );
-      }
-      gridRows.push(
-        <View key={`grid-row-${r}`} style={styles.seatRow}>
-          {seats}
+      result.push(
+        <View key={`row-${r}`} style={styles.seatRow}>
+          <Text style={styles.rowLabel}>{r + 1}</Text>
+          {Array.from({ length: leftColCount }, (_, c) => renderSeatTile(gridStart + r * cols + c))}
+          {leftColCount > 0 && (
+            <View style={styles.aisleGap}>
+              <Text style={styles.aisleText}>│</Text>
+            </View>
+          )}
+          {Array.from({ length: rightColCount }, (_, c) =>
+            renderSeatTile(gridStart + r * cols + (leftColCount + c)),
+          )}
         </View>,
       );
     }
-    return gridRows;
+    return result;
   }
 
-  function renderDriverSeats() {
-    const driverSeats: React.ReactNode[] = [];
-    for (let i = 1; i <= driverSeatCount; i++) {
-      const seatNum = i;
-      const occupied = occupiedSeats.has(seatNum);
-      const isSelected = selectedSeatLabel === seatNum.toString();
-      const isTarget = isDropTarget(seatNum);
+  function renderTempSeatTile(tempLabel: string) {
+    const occupied = occupiedTempSet.has(tempLabel);
+    const isSelected = selectedSeatLabel === tempLabel;
+    const isTarget = isTempDropTarget(tempLabel);
+    const display = `T${tempLabel.slice(5)}`;
 
-      driverSeats.push(
-        <TouchableOpacity
-          key={seatNum}
-          activeOpacity={0.6}
-          onPress={() => handleSeatPress(seatNum)}
-          style={[
-            styles.seat,
-            occupied
-              ? { backgroundColor: colors.primary, borderColor: colors.primary }
-              : { backgroundColor: colors.surface, borderColor: colors.borderLight },
-            isSelected && {
-              backgroundColor: colors.accentLight,
-              borderColor: colors.warning,
-              borderWidth: 2,
-            },
-            isTarget && {
-              backgroundColor: colors.dropTargetBg,
-              borderColor: colors.dropTargetBorder,
-              borderWidth: 2,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.seatText,
-              occupied ? { color: colors.text.inverse } : { color: colors.text.secondary },
-              isSelected && { color: colors.warningText },
-            ]}
-          >
-            {seatNum}
-          </Text>
-        </TouchableOpacity>,
-      );
+    let bg = occupied ? colors.primary : colors.successBg;
+    let topColor = occupied ? colors.primaryDark : colors.successBorder;
+    let textColor = occupied ? colors.text.inverse : colors.success;
+    let frameBorder: object = {};
+
+    if (isSelected) {
+      bg = colors.warningBg;
+      topColor = colors.warningBorder;
+      textColor = colors.warningText;
+      frameBorder = {
+        borderWidth: 2,
+        borderColor: colors.warningBorder,
+        borderStyle: 'solid' as const,
+      };
+    } else if (isTarget) {
+      bg = colors.dropTargetBg;
+      topColor = colors.dropTargetBorder;
+      textColor = colors.success;
+      frameBorder = {
+        borderWidth: 2,
+        borderColor: colors.dropTargetBorder,
+        borderStyle: 'dashed' as const,
+      };
     }
-    return driverSeats;
-  }
 
-  function renderTempSeats() {
-    const slots: React.ReactNode[] = [];
-    for (let i = 1; i <= MAX_TEMP_SEATS; i++) {
-      const label = `temp-${i}`;
-      const occupied = occupiedTempSet.has(label);
-      const isSelected = selectedSeatLabel === label;
-      const isTarget = isTempDropTarget(label);
-
-      slots.push(
-        <TouchableOpacity
-          key={label}
-          activeOpacity={0.6}
-          onPress={() => handleTempSeatPress(label)}
-          style={[
-            styles.tempSeat,
-            occupied
-              ? {
-                  backgroundColor: colors.primary,
-                  borderColor: colors.primary,
-                  borderStyle: 'solid',
-                }
-              : { backgroundColor: colors.surface, borderColor: colors.borderLight },
-            isSelected && {
-              backgroundColor: colors.accentLight,
-              borderColor: colors.warning,
-              borderWidth: 2,
-            },
-            isTarget && {
-              backgroundColor: colors.dropTargetBg,
-              borderColor: colors.dropTargetBorder,
-              borderWidth: 2,
-              borderStyle: 'solid',
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.tempSeatText,
-              occupied && { color: colors.text.inverse },
-              isSelected && { color: colors.warningText },
-            ]}
-          >
-            T{i}
-          </Text>
-        </TouchableOpacity>,
-      );
-    }
-    return slots;
+    return (
+      <TouchableOpacity
+        key={tempLabel}
+        activeOpacity={0.7}
+        onPress={() => handleTempSeatPress(tempLabel)}
+        style={[
+          styles.seatTile,
+          styles.tempTile,
+          { backgroundColor: bg, borderTopColor: topColor },
+          frameBorder,
+        ]}
+      >
+        <Text style={[styles.seatNum, { color: textColor }]}>{display}</Text>
+      </TouchableOpacity>
+    );
   }
 
   return (
@@ -244,42 +263,53 @@ export default function TripMinimap({
           <Text style={styles.legendText}>Occupied ({occupiedCount})</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: colors.border }]} />
+          <View
+            style={[
+              styles.legendDot,
+              {
+                backgroundColor: colors.successBg,
+                borderWidth: 1,
+                borderColor: colors.successBorder,
+              },
+            ]}
+          />
           <Text style={styles.legendText}>Free ({freeSeatsCount})</Text>
         </View>
       </View>
 
       {selectedSeatLabel !== null && (
-        <Text style={[styles.moveHint, { color: colors.warning }]}>
+        <Text style={styles.moveHint}>
           Tap a free seat to move passenger, or tap the selected seat to cancel.
         </Text>
       )}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.minimap}>
-          <View style={styles.driverArea}>
-            <View
-              style={[
-                styles.seat,
-                styles.seatDriver,
-                { backgroundColor: colors.warningBg, borderColor: colors.warningBorder },
-              ]}
-            >
-              <Text style={[styles.seatText, { color: colors.warningText }]}>D</Text>
-            </View>
-            <View style={styles.frontRow}>{renderDriverSeats()}</View>
-          </View>
-
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.grid}>{renderGrid()}</View>
+      <View style={styles.busOutline}>
+        <View style={styles.frontBar}>
+          <Text style={styles.frontText}>▲ FRONT</Text>
         </View>
-      </ScrollView>
+
+        {renderDriverRow()}
+
+        <View style={styles.sectionDivider} />
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.gridInner}>
+            {renderColumnHeaders()}
+            {renderSeatRows()}
+          </View>
+        </ScrollView>
+
+        <View style={styles.backBar}>
+          <Text style={styles.backText}>BACK</Text>
+        </View>
+      </View>
 
       {showTempSeats && (
-        <View style={[styles.tempSection, { borderTopColor: colors.border }]}>
-          <Text style={styles.tempSectionTitle}>Temporary Seats (Swap)</Text>
-          <View style={styles.tempRow}>{renderTempSeats()}</View>
+        <View style={styles.tempSection}>
+          <Text style={styles.tempTitle}>Temporary Seats</Text>
+          <View style={styles.tempRow}>
+            {Array.from({ length: MAX_TEMP_SEATS }, (_, i) => renderTempSeatTile(`temp-${i + 1}`))}
+          </View>
         </View>
       )}
     </View>
@@ -328,57 +358,159 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   moveHint: {
     fontSize: 12,
     fontWeight: '600' as const,
-    marginBottom: 8,
     fontStyle: 'italic' as const,
+    color: colors.warning,
+    marginBottom: 10,
   },
-  minimap: {
+  busOutline: {
+    borderWidth: 2,
+    borderColor: colors.borderLight,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 6,
+    borderBottomRightRadius: 6,
+    overflow: 'hidden' as const,
+  },
+  frontBar: {
+    backgroundColor: colors.primary,
+    paddingVertical: 8,
     alignItems: 'center' as const,
   },
-  driverArea: {
+  frontText: {
+    color: colors.text.inverse,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 2,
+  },
+  driverRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 8,
-    paddingBottom: 8,
-  },
-  frontRow: {
-    flexDirection: 'row' as const,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.warningBg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.warningBorder,
     gap: 6,
   },
-  divider: {
-    width: '100%' as const,
-    height: 1,
-    marginBottom: 8,
-  },
-  grid: {
-    alignItems: 'center' as const,
-  },
-  seatRow: {
-    flexDirection: 'row' as const,
-    gap: 6,
-    marginBottom: 6,
-  },
-  seat: {
-    width: 36,
-    height: 32,
-    borderRadius: 4,
-    borderWidth: 1,
+  steeringWheel: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2.5,
+    borderColor: colors.warningText,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
-  seatDriver: {
-    width: 36,
-    height: 32,
+  steeringHub: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.warningText,
   },
-  seatText: {
-    fontSize: 11,
+  driverSeatTile: {
+    backgroundColor: colors.warningBg,
+    borderTopColor: colors.warningBorder,
+  },
+  driverSeatNum: {
+    color: colors.warningText,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  gridInner: {
+    paddingBottom: 6,
+  },
+  headerRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    paddingBottom: 2,
+    backgroundColor: colors.surfaceAlt,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  colHeader: {
+    width: SEAT_W,
+    marginHorizontal: SEAT_MX,
+    alignItems: 'center' as const,
+  },
+  colHeaderText: {
+    fontSize: 9,
+    fontWeight: '700' as const,
+    color: colors.text.disabled,
+    letterSpacing: 1,
+  },
+  seatRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+  },
+  rowLabel: {
+    width: ROW_LABEL_W,
+    fontSize: 9,
+    fontWeight: '700' as const,
+    color: colors.text.disabled,
+    textAlign: 'right' as const,
+    paddingRight: 6,
+  },
+  aisleGap: {
+    width: AISLE_W,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  aisleText: {
+    fontSize: 14,
+    color: colors.border,
+  },
+  seatTile: {
+    width: SEAT_W,
+    height: SEAT_H,
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+    borderTopWidth: 3,
+    borderTopColor: colors.successBorder,
+    backgroundColor: colors.successBg,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginHorizontal: SEAT_MX,
+  },
+  seatNum: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: colors.success,
+  },
+  tempTile: {
+    borderWidth: 1.5,
+    borderColor: TEMP_SEAT_BORDER,
+    borderStyle: 'dashed' as const,
+    borderTopWidth: 3,
+    borderTopColor: colors.successBorder,
+  },
+  backBar: {
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: 5,
+    alignItems: 'center' as const,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  backText: {
+    fontSize: 9,
     fontWeight: '600' as const,
+    color: colors.text.disabled,
+    letterSpacing: 2,
   },
   tempSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  tempSectionTitle: {
+  tempTitle: {
     fontSize: 13,
     fontWeight: '600' as const,
     color: colors.text.muted,
@@ -388,19 +520,5 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     flexDirection: 'row' as const,
     flexWrap: 'wrap' as const,
     gap: 6,
-  },
-  tempSeat: {
-    width: 36,
-    height: 32,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderStyle: 'dashed' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  tempSeatText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-    color: colors.text.disabled,
   },
 });
