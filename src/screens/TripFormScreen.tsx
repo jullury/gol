@@ -1,33 +1,62 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Modal,
+  FlatList,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAllBuses } from '../db/bus-repository';
+import { getAllRoutes } from '../db/route-repository';
+import { getSetting } from '../db/settings-repository';
 import { createTrip, hasActiveTrip } from '../db/trip-repository';
 import { Bus } from '../types/bus';
+import { Route } from '../types/route';
 import type { TripStackParamList } from '../navigation/TripStackNavigator';
 import { useTheme, useThemeStyles } from '../theme';
 
 export default function TripFormScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<TripStackParamList>>();
   const [buses, setBuses] = useState<Bus[]>([]);
+  const [routes, setRoutes] = useState<Route[]>([]);
   const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const { colors, fonts } = useTheme();
+  const [showBusPicker, setShowBusPicker] = useState(false);
+  const [showRoutePicker, setShowRoutePicker] = useState(false);
+  const { colors } = useTheme();
   const styles = useThemeStyles(createStyles);
 
   useEffect(() => {
-    loadBuses();
+    loadData();
   }, []);
 
-  async function loadBuses() {
+  async function loadData() {
     setIsLoading(true);
     try {
-      const data = await getAllBuses('active');
-      setBuses(data);
+      const [busData, routeData] = await Promise.all([getAllBuses('active'), getAllRoutes()]);
+      setBuses(busData);
+      setRoutes(routeData);
+
+      const [defaultBusId, defaultRouteId] = await Promise.all([
+        getSetting('default_bus_id'),
+        getSetting('default_route_id'),
+      ]);
+
+      if (defaultBusId && busData.some((b) => b.id === defaultBusId)) {
+        setSelectedBusId(defaultBusId);
+      }
+      if (defaultRouteId && routeData.some((r) => r.id === defaultRouteId)) {
+        setSelectedRouteId(defaultRouteId);
+      }
     } catch {
-      Alert.alert('Error', 'Failed to load buses.');
+      Alert.alert('Error', 'Failed to load data.');
     } finally {
       setIsLoading(false);
     }
@@ -47,6 +76,7 @@ export default function TripFormScreen() {
 
       await createTrip({
         busId: selectedBusId,
+        routeId: selectedRouteId,
         startDateTime: Date.now(),
       });
 
@@ -61,6 +91,9 @@ export default function TripFormScreen() {
   const handleCancel = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
+
+  const selectedBus = buses.find((b) => b.id === selectedBusId);
+  const selectedRoute = routes.find((r) => r.id === selectedRouteId);
 
   if (isLoading) {
     return (
@@ -84,22 +117,20 @@ export default function TripFormScreen() {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.sectionTitle}>Select Bus</Text>
-      {buses.map((bus) => (
-        <TouchableOpacity
-          key={bus.id}
-          style={[styles.busOption, selectedBusId === bus.id && styles.busOptionSelected]}
-          onPress={() => setSelectedBusId(bus.id)}
-        >
-          <View style={styles.radioOuter}>
-            {selectedBusId === bus.id && <View style={styles.radioInner} />}
-          </View>
-          <View style={styles.busInfo}>
-            <Text style={styles.busNumero}>{bus.numero}</Text>
-            <Text style={styles.busName}>{bus.name}</Text>
-            <Text style={styles.busSeats}>{bus.numberOfPlace} seats</Text>
-          </View>
-        </TouchableOpacity>
-      ))}
+      <TouchableOpacity style={styles.selector} onPress={() => setShowBusPicker(true)}>
+        <Text style={[styles.selectorText, !selectedBus && styles.selectorPlaceholder]}>
+          {selectedBus ? `${selectedBus.numero} - ${selectedBus.name}` : 'Select a bus'}
+        </Text>
+        <Text style={styles.selectorArrow}>▼</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.sectionTitle}>Select Route</Text>
+      <TouchableOpacity style={styles.selector} onPress={() => setShowRoutePicker(true)}>
+        <Text style={[styles.selectorText, !selectedRoute && styles.selectorPlaceholder]}>
+          {selectedRoute ? selectedRoute.name : 'Select a route'}
+        </Text>
+        <Text style={styles.selectorArrow}>▼</Text>
+      </TouchableOpacity>
 
       <View style={styles.actions}>
         <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={handleCancel}>
@@ -117,6 +148,72 @@ export default function TripFormScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <Modal visible={showBusPicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Bus</Text>
+            <FlatList
+              data={buses}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalOption,
+                    selectedBusId === item.id && styles.modalOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedBusId(item.id);
+                    setShowBusPicker(false);
+                  }}
+                >
+                  <Text style={styles.modalOptionNumero}>{item.numero}</Text>
+                  <Text style={styles.modalOptionName}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowBusPicker(false)}>
+              <Text style={styles.modalCloseBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showRoutePicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Route</Text>
+            {routes.length === 0 ? (
+              <Text style={styles.modalEmptyText}>No routes available. Create a route first.</Text>
+            ) : (
+              <FlatList
+                data={routes}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalOption,
+                      selectedRouteId === item.id && styles.modalOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedRouteId(item.id);
+                      setShowRoutePicker(false);
+                    }}
+                  >
+                    <Text style={styles.modalOptionText}>{item.name}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setShowRoutePicker(false)}
+            >
+              <Text style={styles.modalCloseBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -146,58 +243,35 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     color: colors.text.primary,
     marginBottom: 12,
   },
-  busOption: {
+  selector: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
-    marginBottom: 8,
-    borderWidth: 2,
+    marginBottom: 20,
+    borderWidth: 1,
     borderColor: colors.border,
   },
-  busOptionSelected: {
-    borderColor: colors.primary,
-  },
-  radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.borderLight,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginRight: 12,
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.primary,
-  },
-  busInfo: {
+  selectorText: {
     flex: 1,
-  },
-  busNumero: {
     fontSize: 16,
-    fontWeight: '700' as const,
-    fontFamily: fonts.bold,
+    fontWeight: '500' as const,
     color: colors.text.primary,
   },
-  busName: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    marginTop: 2,
+  selectorPlaceholder: {
+    color: colors.text.disabled,
+    fontWeight: '400' as const,
   },
-  busSeats: {
+  selectorArrow: {
     fontSize: 12,
     color: colors.text.muted,
-    marginTop: 2,
+    marginLeft: 8,
   },
   actions: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
-    marginTop: 24,
+    marginTop: 12,
     marginBottom: 40,
     gap: 12,
   },
@@ -226,5 +300,75 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   },
   btnDisabled: {
     opacity: 0.5,
+  },
+  overlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.overlay,
+    justifyContent: 'flex-end' as const,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'flex-end' as const,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    maxHeight: '60%' as const,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    fontFamily: fonts.bold,
+    color: colors.text.primary,
+    marginBottom: 16,
+  },
+  modalOption: {
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  modalOptionSelected: {
+    backgroundColor: colors.border,
+  },
+  modalOptionNumero: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colors.text.primary,
+  },
+  modalOptionName: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontWeight: '500' as const,
+    color: colors.text.primary,
+  },
+  modalEmptyText: {
+    fontSize: 14,
+    color: colors.text.disabled,
+    textAlign: 'center' as const,
+    paddingVertical: 20,
+  },
+  modalCloseBtn: {
+    backgroundColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center' as const,
+    marginTop: 12,
+  },
+  modalCloseBtnText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colors.text.secondary,
   },
 });

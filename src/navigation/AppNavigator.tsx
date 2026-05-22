@@ -1,10 +1,12 @@
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import BusStackNavigator from './BusStackNavigator';
 import TripStackNavigator from './TripStackNavigator';
+import RouteStackNavigator from './RouteStackNavigator';
 
 export type DrawerParamList = {
   Buses: undefined;
   Trips: undefined;
+  Routes: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -21,6 +23,11 @@ export default function AppNavigator() {
         name="Trips"
         component={TripStackNavigator}
         options={{ title: 'Trips', headerShown: false }}
+      />
+      <Drawer.Screen
+        name="Routes"
+        component={RouteStackNavigator}
+        options={{ title: 'Routes', headerShown: false }}
       />
     </Drawer.Navigator>
   );

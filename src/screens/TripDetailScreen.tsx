@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -23,7 +24,9 @@ import {
   reconstructState,
 } from '../db/trip-repository';
 import { getBusById } from '../db/bus-repository';
+import { getStopsForRoute } from '../db/route-repository';
 import { Trip, TripEvent, TripState } from '../types/trip';
+import { RouteStop } from '../types/route';
 import type { TripStackParamList } from '../navigation/TripStackNavigator';
 import type { Bus } from '../types/bus';
 import { useTheme, useThemeStyles } from '../theme';
@@ -44,15 +47,25 @@ export default function TripDetailScreen() {
   const [actionType, setActionType] = useState<'CASH_IN' | 'CASH_OUT' | null>(null);
   const [moveSeat, setMoveSeat] = useState<string | null>(null);
   const [seatActionLabel, setSeatActionLabel] = useState<string | null>(null);
-  const { colors, fonts } = useTheme();
+  const [stops, setStops] = useState<RouteStop[]>([]);
+  const [showBoardStopPicker, setShowBoardStopPicker] = useState(false);
+  const [pendingBoardSeatId, setPendingBoardSeatId] = useState<string | null>(null);
+  const [showAlightStopPicker, setShowAlightStopPicker] = useState(false);
+  const [pendingAlightLabel, setPendingAlightLabel] = useState<string | null>(null);
+  const { colors } = useTheme();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
+  const isMountedRef = useRef(true);
 
   const isActive = trip?.endDateTime === null;
 
   useFocusEffect(
     useCallback(() => {
+      isMountedRef.current = true;
       loadTrip();
+      return () => {
+        isMountedRef.current = false;
+      };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tripId]),
   );
@@ -61,17 +74,27 @@ export default function TripDetailScreen() {
     setIsLoading(true);
     try {
       const data = await getTripById(tripId);
+      if (!isMountedRef.current) return;
       setTrip(data);
       if (data) {
-        const busData = await getBusById(data.busId);
+        const [busData, stopData] = await Promise.all([
+          getBusById(data.busId),
+          data.routeId ? getStopsForRoute(data.routeId) : [],
+        ]);
+        if (!isMountedRef.current) return;
         setBus(busData);
+        setStops(stopData);
       }
       const eventData = await getTripEvents(tripId);
-      setEvents(eventData);
+      if (isMountedRef.current) {
+        setEvents(eventData);
+      }
     } catch {
       Alert.alert('Error', 'Failed to load trip.');
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }
 
@@ -155,12 +178,24 @@ export default function TripDetailScreen() {
     ]);
   }
 
-  async function handleBoardSeat(seatId: string) {
+  function handleBoardSeat(seatId: string) {
+    if (stops.length > 0) {
+      setPendingBoardSeatId(seatId);
+      setShowBoardStopPicker(true);
+    } else {
+      doBoard(seatId);
+    }
+  }
+
+  async function doBoard(seatId: string, boardStopId?: string) {
     const hexLabel = Crypto.randomUUID().replace(/-/g, '').slice(0, 8);
     const isTempSeat = seatId.startsWith('temp-');
-    const data = isTempSeat
+    const data: Record<string, unknown> = isTempSeat
       ? { tempSlot: parseInt(seatId.slice(5), 10) }
       : { seatNumber: parseInt(seatId, 10) };
+    if (boardStopId) {
+      data.boardStopId = boardStopId;
+    }
     try {
       await addTripEvent({
         tripId,
@@ -178,12 +213,27 @@ export default function TripDetailScreen() {
     setSeatActionLabel(seatId);
   }
 
-  async function handleSeatAlight(seatId: string) {
+  function handleSeatAlight(seatId: string) {
     setSeatActionLabel(null);
     const passenger = getPassengerBySeat(seatId);
     if (!passenger) return;
+    if (stops.length > 0) {
+      setPendingAlightLabel(passenger.label);
+      setShowAlightStopPicker(true);
+    } else {
+      doAlight(passenger.label);
+    }
+  }
+
+  async function doAlight(passengerLabel: string, alightStopId?: string) {
+    const data = alightStopId ? JSON.stringify({ alightStopId }) : '{}';
     try {
-      await addTripEvent({ tripId, type: 'PASSENGER_ALIGHT', label: passenger.label, data: '{}' });
+      await addTripEvent({
+        tripId,
+        type: 'PASSENGER_ALIGHT',
+        label: passengerLabel,
+        data,
+      });
       loadTrip();
     } catch {
       Alert.alert('Error', 'Failed to record alight.');
@@ -404,6 +454,80 @@ export default function TripDetailScreen() {
           </View>
         </View>
       )}
+
+      {showBoardStopPicker && (
+        <View style={styles.overlay}>
+          <View style={[styles.actionSheet, { paddingBottom: insets.bottom + 20 }]}>
+            <Text style={styles.actionSheetTitle}>Select Boarding Stop</Text>
+            <FlatList
+              data={stops}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.stopPickerRow}
+                  onPress={() => {
+                    setShowBoardStopPicker(false);
+                    const seatId = pendingBoardSeatId;
+                    setPendingBoardSeatId(null);
+                    if (seatId) doBoard(seatId, item.id);
+                  }}
+                >
+                  <View style={styles.stopOrderBadge}>
+                    <Text style={styles.stopOrderBadgeText}>{item.orderNumber}</Text>
+                  </View>
+                  <Text style={styles.stopPickerName}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              style={styles.actionSheetCancel}
+              onPress={() => {
+                setShowBoardStopPicker(false);
+                setPendingBoardSeatId(null);
+              }}
+            >
+              <Text style={styles.actionSheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {showAlightStopPicker && (
+        <View style={styles.overlay}>
+          <View style={[styles.actionSheet, { paddingBottom: insets.bottom + 20 }]}>
+            <Text style={styles.actionSheetTitle}>Select Alighting Stop</Text>
+            <FlatList
+              data={stops}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.stopPickerRow}
+                  onPress={() => {
+                    setShowAlightStopPicker(false);
+                    const label = pendingAlightLabel;
+                    setPendingAlightLabel(null);
+                    if (label) doAlight(label, item.id);
+                  }}
+                >
+                  <View style={styles.stopOrderBadge}>
+                    <Text style={styles.stopOrderBadgeText}>{item.orderNumber}</Text>
+                  </View>
+                  <Text style={styles.stopPickerName}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              style={styles.actionSheetCancel}
+              onPress={() => {
+                setShowAlightStopPicker(false);
+                setPendingAlightLabel(null);
+              }}
+            >
+              <Text style={styles.actionSheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -578,5 +702,31 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     fontSize: 16,
     fontWeight: '600' as const,
     color: colors.text.inverse,
+  },
+  stopPickerRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  stopOrderBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 12,
+  },
+  stopOrderBadgeText: {
+    color: colors.text.inverse,
+    fontSize: 12,
+    fontWeight: '700' as const,
+  },
+  stopPickerName: {
+    fontSize: 16,
+    color: colors.text.primary,
   },
 });

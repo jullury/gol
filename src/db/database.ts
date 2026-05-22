@@ -69,6 +69,45 @@ async function migrate(database: SQLite.SQLiteDatabase): Promise<void> {
       'ALTER TABLE buses ADD COLUMN driverSeatCount INTEGER NOT NULL DEFAULT 2',
     );
   }
+
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS routes (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      deletedAt INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS route_stops (
+      id TEXT PRIMARY KEY,
+      routeId TEXT NOT NULL,
+      name TEXT NOT NULL,
+      latitude REAL,
+      longitude REAL,
+      orderNumber INTEGER NOT NULL,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      FOREIGN KEY (routeId) REFERENCES routes(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_route_stops_routeId ON route_stops(routeId);
+    CREATE INDEX IF NOT EXISTS idx_route_stops_order ON route_stops(routeId, orderNumber);
+  `);
+
+  const tripColumns = await database.getAllAsync<{ name: string }>(
+    "SELECT name FROM pragma_table_info('trips')",
+  );
+  const tripColumnNames = tripColumns.map((c) => c.name);
+  if (!tripColumnNames.includes('routeId')) {
+    await database.execAsync('ALTER TABLE trips ADD COLUMN routeId TEXT');
+    await database.execAsync('CREATE INDEX IF NOT EXISTS idx_trips_routeId ON trips(routeId)');
+  }
 }
 
 export async function closeDatabase(): Promise<void> {

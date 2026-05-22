@@ -1,6 +1,7 @@
 export interface Trip {
   id: string;
   busId: string;
+  routeId: string | null;
   startDateTime: number;
   endDateTime: number | null;
   createdAt: number;

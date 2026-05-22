@@ -59,14 +59,15 @@ export async function createTrip(data: TripFormData): Promise<Trip> {
   const trip: Trip = {
     id,
     busId: data.busId,
+    routeId: data.routeId ?? null,
     startDateTime: data.startDateTime,
     endDateTime: null,
     createdAt: now,
   };
 
   await database.runAsync(
-    `INSERT INTO trips (id, busId, startDateTime, endDateTime, createdAt) VALUES (?, ?, ?, ?, ?)`,
-    [trip.id, trip.busId, trip.startDateTime, trip.endDateTime, trip.createdAt],
+    `INSERT INTO trips (id, busId, routeId, startDateTime, endDateTime, createdAt) VALUES (?, ?, ?, ?, ?, ?)`,
+    [trip.id, trip.busId, trip.routeId, trip.startDateTime, trip.endDateTime, trip.createdAt],
   );
 
   return trip;

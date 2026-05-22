@@ -15,6 +15,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Bus } from '../types/bus';
 import { getBusById, softDeleteBus, restoreBus } from '../db/bus-repository';
+import { setSetting } from '../db/settings-repository';
 import type { BusStackParamList } from '../navigation/BusStackNavigator';
 import { useTheme, useThemeStyles } from '../theme';
 
@@ -27,7 +28,7 @@ export default function BusDetailScreen() {
 
   const [bus, setBus] = useState<Bus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { colors, fonts } = useTheme();
+  const { colors } = useTheme();
   const styles = useThemeStyles(createStyles);
 
   useFocusEffect(
@@ -149,12 +150,12 @@ export default function BusDetailScreen() {
           </View>
         )}
 
-        <View style={styles.actions}>
+        <View style={styles.actionsRow}>
           <TouchableOpacity
-            style={[styles.btn, styles.editBtn]}
+            style={[styles.btn, styles.primaryBtn]}
             onPress={() => navigation.navigate('BusForm', { busId: bus.id })}
           >
-            <Text style={styles.editBtnText}>Edit</Text>
+            <Text style={styles.primaryBtnText}>Edit</Text>
           </TouchableOpacity>
 
           {bus.deletedAt ? (
@@ -167,6 +168,18 @@ export default function BusDetailScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {!bus.deletedAt && (
+          <TouchableOpacity
+            style={styles.setDefaultBtn}
+            onPress={() => {
+              setSetting('default_bus_id', bus.id);
+              Alert.alert('Done', 'Set as default bus.');
+            }}
+          >
+            <Text style={styles.setDefaultBtnText}>Set as Default Bus</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );
@@ -238,7 +251,7 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
   deletedText: {
     color: colors.danger,
   },
-  actions: {
+  actionsRow: {
     flexDirection: 'row' as const,
     gap: 12,
     marginTop: 28,
@@ -249,10 +262,10 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     borderRadius: 10,
     alignItems: 'center' as const,
   },
-  editBtn: {
+  primaryBtn: {
     backgroundColor: colors.primary,
   },
-  editBtnText: {
+  primaryBtnText: {
     fontSize: 16,
     fontWeight: '600' as const,
     color: colors.text.inverse,
@@ -276,5 +289,17 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     fontSize: 16,
     fontWeight: '600' as const,
     color: colors.success,
+  },
+  setDefaultBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center' as const,
+    marginTop: 12,
+  },
+  setDefaultBtnText: {
+    color: colors.text.inverse,
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
 });
