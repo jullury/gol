@@ -52,6 +52,8 @@ export default function TripDetailScreen() {
   const [pendingBoardSeatId, setPendingBoardSeatId] = useState<string | null>(null);
   const [showAlightStopPicker, setShowAlightStopPicker] = useState(false);
   const [pendingAlightLabel, setPendingAlightLabel] = useState<string | null>(null);
+  const [showFillStopPicker, setShowFillStopPicker] = useState(false);
+  const [pendingFillSeatIds, setPendingFillSeatIds] = useState<string[]>([]);
   const { colors } = useTheme();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -124,6 +126,34 @@ export default function TripDetailScreen() {
     return slots;
   }, [state]);
 
+  const emptySeatIds = useMemo(() => {
+    if (!bus) return [];
+    const totalSeats = bus.numberOfPlace;
+    const ids: string[] = [];
+    for (let i = 1; i <= totalSeats; i++) {
+      if (!occupiedSeats.has(i)) {
+        ids.push(i.toString());
+      }
+    }
+    return ids;
+  }, [bus, occupiedSeats]);
+
+  const seatPassenger = useMemo(() => {
+    if (!state || seatActionLabel === null) return null;
+    const isTempSeat = seatActionLabel.startsWith('temp-');
+    for (const p of state.passengers.values()) {
+      if (p.alightedAt !== null) continue;
+      if (isTempSeat) {
+        if (p.tempSlot === parseInt(seatActionLabel.slice(5), 10)) return p;
+      } else {
+        if (p.seatNumber === parseInt(seatActionLabel, 10)) return p;
+      }
+    }
+    return null;
+  }, [state, seatActionLabel]);
+
+  const canCashOut = seatPassenger !== null && seatPassenger.cashIn > seatPassenger.cashOut;
+
   function getPassengerBySeat(seatId: string) {
     if (!state) return null;
     const isTempSeat = seatId.startsWith('temp-');
@@ -187,6 +217,18 @@ export default function TripDetailScreen() {
     }
   }
 
+  async function refreshEvents() {
+    try {
+      const [eventData, tripData] = await Promise.all([getTripEvents(tripId), getTripById(tripId)]);
+      if (isMountedRef.current) {
+        setTrip(tripData);
+        setEvents(eventData);
+      }
+    } catch {
+      // silent refresh failure
+    }
+  }
+
   async function doBoard(seatId: string, boardStopId?: string) {
     const hexLabel = Crypto.randomUUID().replace(/-/g, '').slice(0, 8);
     const isTempSeat = seatId.startsWith('temp-');
@@ -203,7 +245,7 @@ export default function TripDetailScreen() {
         label: hexLabel,
         data: JSON.stringify(data),
       });
-      loadTrip();
+      refreshEvents();
     } catch {
       Alert.alert('Error', 'Failed to board passenger.');
     }
@@ -234,9 +276,40 @@ export default function TripDetailScreen() {
         label: passengerLabel,
         data,
       });
-      loadTrip();
+      refreshEvents();
     } catch {
       Alert.alert('Error', 'Failed to record alight.');
+    }
+  }
+
+  function handleFillBus() {
+    if (emptySeatIds.length === 0) return;
+    if (stops.length > 0) {
+      setPendingFillSeatIds(emptySeatIds);
+      setShowFillStopPicker(true);
+    } else {
+      doFillBus(emptySeatIds);
+    }
+  }
+
+  async function doFillBus(seatIds: string[], boardStopId?: string) {
+    try {
+      for (const seatId of seatIds) {
+        const hexLabel = Crypto.randomUUID().replace(/-/g, '').slice(0, 8);
+        const data: Record<string, unknown> = { seatNumber: parseInt(seatId, 10) };
+        if (boardStopId) {
+          data.boardStopId = boardStopId;
+        }
+        await addTripEvent({
+          tripId,
+          type: 'PASSENGER_BOARD',
+          label: hexLabel,
+          data: JSON.stringify(data),
+        });
+      }
+      refreshEvents();
+    } catch {
+      Alert.alert('Error', 'Failed to fill bus.');
     }
   }
 
@@ -280,7 +353,7 @@ export default function TripDetailScreen() {
       setActionType(null);
       setPassengerLabel('');
       setCashAmount('');
-      loadTrip();
+      refreshEvents();
     } catch {
       Alert.alert('Error', 'Failed to record action.');
     }
@@ -376,13 +449,46 @@ export default function TripDetailScreen() {
           <TouchableOpacity style={styles.endTripFab} onPress={handleEndTrip}>
             <Text style={styles.endTripFabText}>End Trip</Text>
           </TouchableOpacity>
+          {emptySeatIds.length > 0 && (
+            <TouchableOpacity style={styles.fillBusFab} onPress={handleFillBus}>
+              <Text style={styles.fillBusFabText}>Fill Bus ({emptySeatIds.length})</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
       {seatActionLabel !== null && (
         <View style={styles.overlay}>
+          <TouchableOpacity
+            style={styles.overlayBackdrop}
+            activeOpacity={1}
+            onPress={() => setSeatActionLabel(null)}
+          />
           <View style={[styles.actionSheet, { paddingBottom: insets.bottom + 20 }]}>
             <Text style={styles.actionSheetTitle}>Seat {seatActionLabel}</Text>
+            {seatPassenger && (
+              <View style={styles.seatCashInfo}>
+                <Text style={styles.seatCashInfoText}>
+                  In: {seatPassenger.cashIn.toLocaleString()} Ar
+                </Text>
+                <Text style={styles.seatCashInfoText}>
+                  Out: {seatPassenger.cashOut.toLocaleString()} Ar
+                </Text>
+                <Text
+                  style={[
+                    styles.seatCashInfoText,
+                    {
+                      color:
+                        seatPassenger.cashIn - seatPassenger.cashOut > 0
+                          ? colors.success
+                          : colors.text.secondary,
+                    },
+                  ]}
+                >
+                  Net: {(seatPassenger.cashIn - seatPassenger.cashOut).toLocaleString()} Ar
+                </Text>
+              </View>
+            )}
             <View style={styles.seatActionGrid}>
               <View style={styles.seatActionRow}>
                 <TouchableOpacity
@@ -400,8 +506,13 @@ export default function TripDetailScreen() {
               </View>
               <View style={styles.seatActionRow}>
                 <TouchableOpacity
-                  style={[styles.seatActionBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => handleSeatCash(seatActionLabel, 'CASH_OUT')}
+                  style={[
+                    styles.seatActionBtn,
+                    { backgroundColor: colors.primary, opacity: canCashOut ? 1 : 0.4 },
+                  ]}
+                  onPress={() => {
+                    if (canCashOut) handleSeatCash(seatActionLabel, 'CASH_OUT');
+                  }}
                 >
                   <Text style={styles.seatActionBtnText}>Cash Out</Text>
                 </TouchableOpacity>
@@ -421,6 +532,11 @@ export default function TripDetailScreen() {
 
       {showActionSheet && (
         <View style={styles.overlay}>
+          <TouchableOpacity
+            style={styles.overlayBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowActionSheet(false)}
+          />
           <View style={[styles.actionSheet, { paddingBottom: insets.bottom + 20 }]}>
             <Text style={styles.actionSheetTitle}>
               {actionType === 'CASH_IN' ? 'Cash Received' : 'Cash Returned'}
@@ -457,6 +573,14 @@ export default function TripDetailScreen() {
 
       {showBoardStopPicker && (
         <View style={styles.overlay}>
+          <TouchableOpacity
+            style={styles.overlayBackdrop}
+            activeOpacity={1}
+            onPress={() => {
+              setShowBoardStopPicker(false);
+              setPendingBoardSeatId(null);
+            }}
+          />
           <View style={[styles.actionSheet, { paddingBottom: insets.bottom + 20 }]}>
             <Text style={styles.actionSheetTitle}>Select Boarding Stop</Text>
             <FlatList
@@ -494,6 +618,14 @@ export default function TripDetailScreen() {
 
       {showAlightStopPicker && (
         <View style={styles.overlay}>
+          <TouchableOpacity
+            style={styles.overlayBackdrop}
+            activeOpacity={1}
+            onPress={() => {
+              setShowAlightStopPicker(false);
+              setPendingAlightLabel(null);
+            }}
+          />
           <View style={[styles.actionSheet, { paddingBottom: insets.bottom + 20 }]}>
             <Text style={styles.actionSheetTitle}>Select Alighting Stop</Text>
             <FlatList
@@ -521,6 +653,51 @@ export default function TripDetailScreen() {
               onPress={() => {
                 setShowAlightStopPicker(false);
                 setPendingAlightLabel(null);
+              }}
+            >
+              <Text style={styles.actionSheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {showFillStopPicker && (
+        <View style={styles.overlay}>
+          <TouchableOpacity
+            style={styles.overlayBackdrop}
+            activeOpacity={1}
+            onPress={() => {
+              setShowFillStopPicker(false);
+              setPendingFillSeatIds([]);
+            }}
+          />
+          <View style={[styles.actionSheet, { paddingBottom: insets.bottom + 20 }]}>
+            <Text style={styles.actionSheetTitle}>Select Boarding Stop</Text>
+            <FlatList
+              data={stops}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.stopPickerRow}
+                  onPress={() => {
+                    setShowFillStopPicker(false);
+                    const ids = pendingFillSeatIds;
+                    setPendingFillSeatIds([]);
+                    if (ids.length > 0) doFillBus(ids, item.id);
+                  }}
+                >
+                  <View style={styles.stopOrderBadge}>
+                    <Text style={styles.stopOrderBadgeText}>{item.orderNumber}</Text>
+                  </View>
+                  <Text style={styles.stopPickerName}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              style={styles.actionSheetCancel}
+              onPress={() => {
+                setShowFillStopPicker(false);
+                setPendingFillSeatIds([]);
               }}
             >
               <Text style={styles.actionSheetCancelText}>Cancel</Text>
@@ -600,6 +777,8 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     fontWeight: '500' as const,
   },
   fabContainer: {
+    flexDirection: 'row' as const,
+    gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: colors.surface,
@@ -607,6 +786,7 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     borderTopColor: colors.border,
   },
   endTripFab: {
+    flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
     backgroundColor: colors.danger,
@@ -617,6 +797,33 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     color: colors.text.inverse,
     fontSize: 15,
     fontWeight: '700' as const,
+  },
+  fillBusFab: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  fillBusFabText: {
+    color: colors.text.inverse,
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  seatCashInfo: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-around' as const,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+  },
+  seatCashInfoText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: colors.text.primary,
   },
   seatActionGrid: {
     gap: 10,
@@ -646,6 +853,9 @@ const createStyles = ({ colors, fonts }: ReturnType<typeof useTheme>) => ({
     bottom: 0,
     backgroundColor: colors.overlay,
     justifyContent: 'flex-end' as const,
+  },
+  overlayBackdrop: {
+    flex: 1,
   },
   actionSheet: {
     backgroundColor: colors.surface,
